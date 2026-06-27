@@ -3,20 +3,364 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>BQ Agenda | Gestão de Agendamentos</title>
-  <meta name="description" content="Sistema web de agenda, clientes, financeiro e BI para estabelecimentos.">
+  <title>BQ Agenda | Agenda online para estabelecimentos</title>
+  <meta name="description" content="Agenda online para estabelecimentos com confirmação por WhatsApp, controle de clientes, financeiro e página de divulgação.">
+
+  <meta property="og:title" content="BQ Agenda">
+  <meta property="og:description" content="Seu negócio com agenda online, confirmação por WhatsApp e controle financeiro em uma plataforma simples.">
+  <meta property="og:type" content="website">
+  <meta property="og:image" content="logo.png">
+
+  <link rel="icon" href="logo.png">
   <link rel="stylesheet" href="styles.css">
   <script src="https://unpkg.com/lucide@latest"></script>
+
+  <style>
+    .preload-home {
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: minmax(0, 1.05fr) minmax(360px, 0.75fr);
+      gap: 48px;
+      align-items: center;
+      padding: 48px 6vw;
+      background:
+        linear-gradient(135deg, rgba(7, 20, 38, 0.94), rgba(11, 126, 115, 0.88)),
+        url("https://images.unsplash.com/photo-1556761175-b413da4baf72?auto=format&fit=crop&w=1800&q=80");
+      background-size: cover;
+      background-position: center;
+      color: #fff;
+    }
+
+    .preload-brand {
+      width: 170px;
+      max-width: 70vw;
+      height: auto;
+      margin-bottom: 44px;
+      object-fit: contain;
+    }
+
+    .preload-copy h1 {
+      max-width: 760px;
+      margin: 0;
+      font-size: clamp(42px, 6vw, 78px);
+      line-height: 0.96;
+      letter-spacing: 0;
+    }
+
+    .preload-copy p {
+      max-width: 620px;
+      margin: 24px 0 0;
+      font-size: 20px;
+      line-height: 1.55;
+      color: rgba(255, 255, 255, 0.86);
+    }
+
+    .preload-benefits {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(150px, 1fr));
+      gap: 14px;
+      max-width: 760px;
+      margin-top: 36px;
+    }
+
+    .preload-benefit {
+      min-height: 112px;
+      padding: 18px;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.12);
+      border: 1px solid rgba(255, 255, 255, 0.22);
+      backdrop-filter: blur(10px);
+    }
+
+    .preload-benefit strong {
+      display: block;
+      margin-bottom: 8px;
+      font-size: 16px;
+    }
+
+    .preload-benefit span {
+      display: block;
+      font-size: 14px;
+      line-height: 1.35;
+      color: rgba(255, 255, 255, 0.8);
+    }
+
+    .preload-panel {
+      width: 100%;
+      max-width: 520px;
+      justify-self: end;
+      padding: 28px;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.96);
+      color: #071426;
+      box-shadow: 0 24px 80px rgba(0, 0, 0, 0.24);
+    }
+
+    .preload-panel h2 {
+      margin: 0 0 8px;
+      font-size: 28px;
+      line-height: 1.15;
+    }
+
+    .preload-panel > p {
+      margin: 0 0 22px;
+      color: #5d6b82;
+      line-height: 1.45;
+    }
+
+    .preload-plans {
+      display: grid;
+      gap: 14px;
+    }
+
+    .preload-plan {
+      padding: 18px;
+      border: 1px solid #dce4ef;
+      border-radius: 8px;
+      background: #fff;
+    }
+
+    .preload-plan.featured {
+      border-color: #118577;
+      background: #f1fbf8;
+    }
+
+    .preload-plan-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 14px;
+      margin-bottom: 14px;
+    }
+
+    .preload-plan-header span {
+      display: block;
+      font-size: 14px;
+      color: #5d6b82;
+    }
+
+    .preload-plan-header strong {
+      display: block;
+      font-size: 30px;
+      line-height: 1;
+      color: #071426;
+      white-space: nowrap;
+    }
+
+    .preload-plan h3 {
+      margin: 0 0 12px;
+      font-size: 18px;
+    }
+
+    .preload-plan ul {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      display: grid;
+      gap: 9px;
+    }
+
+    .preload-plan li {
+      display: flex;
+      gap: 8px;
+      align-items: flex-start;
+      font-size: 14px;
+      line-height: 1.35;
+      color: #26354d;
+    }
+
+    .preload-plan li::before {
+      content: "✓";
+      color: #118577;
+      font-weight: 800;
+    }
+
+    .preload-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-top: 18px;
+    }
+
+    .preload-button {
+      display: inline-flex;
+      min-height: 46px;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      border-radius: 8px;
+      border: 0;
+      background: #118577;
+      color: #fff;
+      font-weight: 800;
+      text-decoration: none;
+    }
+
+    .preload-button.secondary {
+      background: #edf2f7;
+      color: #071426;
+    }
+
+    .preload-button.whatsapp {
+      grid-column: 1 / -1;
+      background: #25d366;
+      color: #062b16;
+    }
+
+    .preload-note {
+      margin-top: 16px;
+      font-size: 13px;
+      color: #6b778c;
+      text-align: center;
+    }
+
+    @media (max-width: 980px) {
+      .preload-home {
+        grid-template-columns: 1fr;
+        gap: 32px;
+        padding: 32px 22px;
+      }
+
+      .preload-panel {
+        justify-self: stretch;
+        max-width: none;
+      }
+
+      .preload-benefits {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 560px) {
+      .preload-home {
+        padding: 24px 16px;
+      }
+
+      .preload-brand {
+        width: 138px;
+        margin-bottom: 32px;
+      }
+
+      .preload-copy h1 {
+        font-size: 42px;
+      }
+
+      .preload-copy p {
+        font-size: 17px;
+      }
+
+      .preload-panel {
+        padding: 20px;
+      }
+
+      .preload-actions {
+        grid-template-columns: 1fr;
+      }
+
+      .preload-plan-header {
+        display: grid;
+      }
+    }
+  </style>
 </head>
+
 <body>
   <main id="root">
-    <section class="splash">
-      <div>
-        <strong>BQ Agenda</strong>
-        <span>Carregando seu painel...</span>
+    <section class="preload-home">
+      <div class="preload-copy">
+        <img src="logo.png" alt="BQ Agenda" class="preload-brand">
+
+        <h1>Agenda online para negócios que vivem de horário.</h1>
+
+        <p>
+          Organize seus agendamentos, confirme pelo WhatsApp, acompanhe seus clientes
+          e controle seus ganhos em uma plataforma simples, web e pronta para usar.
+        </p>
+
+        <div class="preload-benefits">
+          <div class="preload-benefit">
+            <strong>Agenda online</strong>
+            <span>Seu cliente escolhe serviço, data e horário pelo link público.</span>
+          </div>
+
+          <div class="preload-benefit">
+            <strong>Confirmação rápida</strong>
+            <span>O cliente envia os dados do agendamento direto para o WhatsApp do estabelecimento.</span>
+          </div>
+
+          <div class="preload-benefit">
+            <strong>Gestão completa</strong>
+            <span>Controle clientes, serviços, pagamentos, agenda e financeiro.</span>
+          </div>
+        </div>
       </div>
+
+      <aside class="preload-panel">
+        <h2>Escolha seu plano</h2>
+        <p>Cadastre seu estabelecimento e aguarde a aprovação para começar a usar.</p>
+
+        <div class="preload-plans">
+          <article class="preload-plan featured">
+            <div class="preload-plan-header">
+              <div>
+                <span>Plano Mensal</span>
+                <h3>BQ Agenda</h3>
+              </div>
+              <strong>R$ 29,99</strong>
+            </div>
+
+            <ul>
+              <li>Confirmação por WhatsApp</li>
+              <li>Controle de clientes</li>
+              <li>Controle financeiro</li>
+            </ul>
+          </article>
+
+          <article class="preload-plan">
+            <div class="preload-plan-header">
+              <div>
+                <span>Plano Trimestral</span>
+                <h3>BQ Agenda</h3>
+              </div>
+              <strong>R$ 59,99</strong>
+            </div>
+
+            <ul>
+              <li>Confirmação por WhatsApp</li>
+              <li>Controle de clientes</li>
+              <li>Página de divulgação do seu negócio com local e redes sociais</li>
+              <li>Link direto de agendamento</li>
+              <li>Controle financeiro</li>
+            </ul>
+          </article>
+        </div>
+
+        <div class="preload-actions">
+          <a href="#register" class="preload-button">
+            Cadastrar negócio
+          </a>
+
+          <a href="#login" class="preload-button secondary">
+            Entrar
+          </a>
+
+          <a
+            class="preload-button whatsapp"
+            target="_blank"
+            rel="noopener"
+            href="https://wa.me/5511999999999?text=Ol%C3%A1%2C%20BQ%20Agenda%21%20Tenho%20interesse%20em%20cadastrar%20meu%20estabelecimento."
+          >
+            Falar com a BQ pelo WhatsApp
+          </a>
+        </div>
+
+        <div class="preload-note">
+          Depois do cadastro, você também poderá enviar a confirmação pelo WhatsApp.
+        </div>
+      </aside>
     </section>
   </main>
-  <script type="module" src="app.js"></script>
+
+  <script type="module" src="app.js?v=5"></script>
 </body>
 </html>

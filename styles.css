@@ -289,6 +289,7 @@ a {
   place-items: center;
   background: var(--soft);
   color: var(--text);
+  text-decoration: none;
 }
 
 .app-shell {
@@ -510,11 +511,84 @@ a {
   align-items: flex-start;
 }
 
+.admin-item.selected {
+  border-color: var(--primary);
+  background: #f1fbf8;
+}
+
 .admin-actions {
   display: grid;
-  grid-template-columns: minmax(160px, 1fr) auto auto auto;
+  grid-template-columns: minmax(150px, 1fr) 150px auto auto auto auto auto;
   gap: 8px;
   align-items: center;
+}
+
+.admin-detail-panel {
+  border-color: rgba(17, 133, 119, 0.35);
+}
+
+.admin-detail-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  align-items: flex-start;
+  margin-bottom: 18px;
+}
+
+.admin-detail-head h2 {
+  margin: 0 0 6px;
+}
+
+.admin-detail-head p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.admin-detail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.admin-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(150px, 1fr));
+  gap: 10px;
+}
+
+.admin-detail-grid div {
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.admin-detail-grid span {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.admin-detail-grid strong {
+  display: block;
+  word-break: break-word;
+}
+
+.compact-metrics {
+  grid-template-columns: repeat(6, minmax(120px, 1fr));
+  margin-top: 18px;
+}
+
+.admin-columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+  margin-top: 18px;
+}
+
+.admin-columns h3 {
+  margin: 0 0 10px;
 }
 
 .status-page {
@@ -608,6 +682,32 @@ a {
   font-size: 24px;
 }
 
+@media (max-width: 1200px) {
+  .admin-actions {
+    grid-template-columns: 1fr 1fr;
+    width: 100%;
+  }
+
+  .item.admin-item {
+    display: grid;
+  }
+}
+
+@media (max-width: 1100px) {
+  .compact-metrics,
+  .admin-detail-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .admin-columns {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-detail-head {
+    display: grid;
+  }
+}
+
 @media (max-width: 980px) {
   .modern-auth {
     grid-template-columns: 1fr;
@@ -639,15 +739,6 @@ a {
   .metrics {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-
-  .admin-actions {
-    grid-template-columns: 1fr;
-    width: 100%;
-  }
-
-  .item.admin-item {
-    display: grid;
-  }
 }
 
 @media (max-width: 640px) {
@@ -676,7 +767,10 @@ a {
   .grid-2,
   .form-grid,
   .metrics,
-  .sidebar nav {
+  .sidebar nav,
+  .compact-metrics,
+  .admin-detail-grid,
+  .admin-actions {
     grid-template-columns: 1fr;
   }
 

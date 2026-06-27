@@ -134,6 +134,16 @@ function clearSubscriptions() {
   unsubscribers = [];
 }
 
+function resetLocalData() {
+  users = [];
+  clients = [];
+  services = [];
+  appointments = [];
+  transactions = [];
+  adminSelectedUserId = null;
+  adminSelectedData = { clients: [], appointments: [], services: [], transactions: [] };
+}
+
 function empty(title, text) {
   return `<div class="empty"><strong>${title}</strong><span>${text}</span></div>`;
 }
@@ -287,6 +297,10 @@ function planMonths(plan) {
   return 1;
 }
 
+function nextDueDateByPlan(plan) {
+  return addMonthsToDate(today(), planMonths(plan));
+}
+
 function daysUntil(dateString) {
   if (!dateString) return null;
   const todayDate = new Date(today() + "T12:00:00");
@@ -332,16 +346,14 @@ function billingShortText(user) {
   return "Em dia";
 }
 
-function nextDueDateByPlan(plan) {
-  return addMonthsToDate(today(), planMonths(plan));
-}
-
 function publicBookingLink(user) {
   const slug = user.slug || user.id;
   return `${location.origin}${location.pathname}#book/${slug}`;
 }
 
 window.previewPlanDueDate = id => {
+  if (profile?.role !== "admin") return;
+
   const user = users.find(u => u.id === id);
   const plan = $(`plan-${id}`)?.value || user?.plan || "monthly";
   const nextDueDate = nextDueDateByPlan(plan);
@@ -521,6 +533,10 @@ function renderRegisterForm() {
 function renderShell() {
   const admin = profile?.role === "admin";
 
+  if (!admin && activeTab === "admin") {
+    activeTab = "dashboard";
+  }
+
   root.innerHTML = `
     <section class="app-shell">
       <aside class="sidebar">
@@ -554,18 +570,30 @@ function navButton(id, iconName, label) {
 }
 
 window.changeTab = tab => {
-  activeTab = tab;
+  if (tab === "admin" && profile?.role !== "admin") {
+    activeTab = "dashboard";
+  } else {
+    activeTab = tab;
+  }
+
   renderShell();
 };
 
 function renderView() {
-  if (activeTab === "admin") return renderAdmin();
+  const isAdmin = profile?.role === "admin";
+
+  if (activeTab === "admin" && !isAdmin) {
+    activeTab = "dashboard";
+  }
+
+  if (activeTab === "admin" && isAdmin) return renderAdmin();
   if (activeTab === "agenda") return renderAgenda();
   if (activeTab === "clientes") return renderClientes();
   if (activeTab === "servicos") return renderServicos();
   if (activeTab === "financeiro") return renderFinanceiro();
   if (activeTab === "disponibilidade") return renderDisponibilidade();
   if (activeTab === "online") return renderOnline();
+
   return renderDashboard();
 }
 
@@ -934,7 +962,6 @@ function renderDisponibilidade() {
 window.addAvailabilityInterval = key => {
   const container = $(`${key}Intervals`);
   if (!container) return;
-
   container.insertAdjacentHTML("beforeend", availabilityIntervalRow(key, "13:00", "18:00"));
 };
 
@@ -1025,6 +1052,8 @@ function renderOnline() {
 }
 
 async function loadAdminBusinessData(userId) {
+  if (profile?.role !== "admin") return;
+
   const [clientSnap, appointmentSnap, serviceSnap, transactionSnap] = await Promise.all([
     getDocs(collection(db, "users", userId, "clients")),
     getDocs(collection(db, "users", userId, "appointments")),
@@ -1059,6 +1088,7 @@ function adminBillingMiniCard(user) {
 }
 
 function adminBusinessDetails(user) {
+  if (profile?.role !== "admin") return "";
   if (!user) return "";
 
   const totalAppointments = adminSelectedData.appointments.length;
@@ -1146,6 +1176,14 @@ function adminBusinessDetails(user) {
 }
 
 function renderAdmin() {
+  if (profile?.role !== "admin") {
+    activeTab = "dashboard";
+    users = [];
+    adminSelectedUserId = null;
+    adminSelectedData = { clients: [], appointments: [], services: [], transactions: [] };
+    return renderDashboard();
+  }
+
   const establishments = users.filter(u => u.role !== "admin");
 
   const active = establishments.filter(u => u.status === "active" && !u.blocked).length;
@@ -1219,6 +1257,8 @@ function renderAdmin() {
 }
 
 window.openAdminDetails = async id => {
+  if (profile?.role !== "admin") return;
+
   adminSelectedUserId = id;
   $("view").innerHTML = `<section class="panel"><h2>Carregando dados do estabelecimento...</h2></section>`;
   await loadAdminBusinessData(id);
@@ -1226,6 +1266,8 @@ window.openAdminDetails = async id => {
 };
 
 window.approveUser = async id => {
+  if (profile?.role !== "admin") return;
+
   const selected = users.find(u => u.id === id);
   const plan = $(`plan-${id}`)?.value || selected?.plan || "monthly";
   const dueInput = $(`due-${id}`)?.value || nextDueDateByPlan(plan);
@@ -1260,6 +1302,8 @@ window.approveUser = async id => {
 };
 
 window.savePlan = async id => {
+  if (profile?.role !== "admin") return;
+
   const selected = users.find(u => u.id === id);
   const plan = $(`plan-${id}`)?.value || selected?.plan || "monthly";
   const nextDueDate = $(`due-${id}`)?.value || nextDueDateByPlan(plan);
@@ -1277,6 +1321,8 @@ window.savePlan = async id => {
 };
 
 window.markBusinessPaid = async id => {
+  if (profile?.role !== "admin") return;
+
   const selected = users.find(u => u.id === id);
   const nextDueDate = nextDueDateByPlan(selected?.plan || "monthly");
 
@@ -1299,6 +1345,8 @@ window.markBusinessPaid = async id => {
 };
 
 window.sendBillingReminder = id => {
+  if (profile?.role !== "admin") return;
+
   const selected = users.find(u => u.id === id);
   if (!selected) return alert("Estabelecimento não encontrado.");
   if (!selected.whatsapp) return alert("Este estabelecimento não possui WhatsApp cadastrado.");
@@ -1327,6 +1375,8 @@ window.sendBillingReminder = id => {
 };
 
 window.blockUser = async (id, blocked) => {
+  if (profile?.role !== "admin") return;
+
   const selected = users.find(u => u.id === id);
 
   await updateDoc(doc(db, "users", id), {
@@ -1522,6 +1572,11 @@ function subscribeEstablishment(uid) {
 
   unsubscribers.push(onSnapshot(doc(db, "users", uid), snap => {
     profile = { id: uid, ...snap.data() };
+
+    if (profile.role !== "admin" && activeTab === "admin") {
+      activeTab = "dashboard";
+    }
+
     renderShell();
   }));
 
@@ -1551,11 +1606,20 @@ function subscribeAdmin(uid) {
 
   unsubscribers.push(onSnapshot(doc(db, "users", uid), snap => {
     profile = { id: uid, ...snap.data() };
+
+    if (profile.role !== "admin") {
+      activeTab = "dashboard";
+      resetLocalData();
+      renderShell();
+      return;
+    }
+
     activeTab = "admin";
     renderShell();
   }));
 
   unsubscribers.push(onSnapshot(collection(db, "users"), snap => {
+    if (profile?.role !== "admin") return;
     users = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     if (profile) renderView();
   }));
@@ -1582,6 +1646,11 @@ window.logoutNow = () => signOut(auth);
 async function handleAuthState(user) {
   currentUser = user;
   clearSubscriptions();
+  resetLocalData();
+
+  if (!user) {
+    activeTab = "dashboard";
+  }
 
   if (location.hash.startsWith("#book")) {
     await renderPublicBooking();
@@ -1606,8 +1675,13 @@ async function handleAuthState(user) {
   profile = { id: user.uid, ...snap.data() };
 
   if (profile.role === "admin") {
+    activeTab = "admin";
     subscribeAdmin(user.uid);
     return;
+  }
+
+  if (activeTab === "admin") {
+    activeTab = "dashboard";
   }
 
   if (profile.status !== "active" || profile.blocked) {

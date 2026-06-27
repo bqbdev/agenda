@@ -18,7 +18,6 @@ import {
   getDocs,
   onSnapshot,
   query,
-  orderBy,
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 
@@ -34,7 +33,6 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
-
 const root = document.getElementById("root");
 const bqWhatsapp = "5511996785799";
 
@@ -42,12 +40,13 @@ let currentUser = null;
 let profile = null;
 let activeTab = "dashboard";
 let unsubscribers = [];
-
 let users = [];
 let clients = [];
 let services = [];
 let appointments = [];
 let transactions = [];
+let adminSelectedUserId = null;
+let adminSelectedData = { clients: [], appointments: [], services: [], transactions: [] };
 
 const plans = {
   monthly: "Plano mensal",
@@ -157,8 +156,7 @@ function overlaps(startA, endA, startB, endB) {
 function dateToWeekKey(dateString) {
   const [year, month, day] = dateString.split("-").map(Number);
   const date = new Date(year, month - 1, day);
-  const dayIndex = date.getDay();
-  return ["sun", "mon", "tue", "wed", "thu", "fri", "sat"][dayIndex];
+  return ["sun", "mon", "tue", "wed", "thu", "fri", "sat"][date.getDay()];
 }
 
 function lastDayOfCurrentMonth() {
@@ -175,12 +173,8 @@ function lastDayOfCurrentYear() {
 function getDayIntervals(dayConfig) {
   if (!dayConfig || dayConfig.enabled !== true) return [];
   let intervals = [];
-
-  if (Array.isArray(dayConfig.intervals) && dayConfig.intervals.length) {
-    intervals = dayConfig.intervals;
-  } else if (dayConfig.start && dayConfig.end) {
-    intervals = [{ start: dayConfig.start, end: dayConfig.end }];
-  }
+  if (Array.isArray(dayConfig.intervals) && dayConfig.intervals.length) intervals = dayConfig.intervals;
+  else if (dayConfig.start && dayConfig.end) intervals = [{ start: dayConfig.start, end: dayConfig.end }];
 
   return intervals
     .map(item => ({ start: item.start, end: item.end }))
@@ -240,7 +234,6 @@ function getAvailableSlots({ date, service, availability, appointments: list, bo
 function fileToCompressedDataUrl(file) {
   return new Promise((resolve, reject) => {
     if (!file) return resolve("");
-
     const reader = new FileReader();
 
     reader.onload = () => {
@@ -250,13 +243,9 @@ function fileToCompressedDataUrl(file) {
         const max = 800;
         const ratio = Math.min(max / image.width, max / image.height, 1);
         const canvas = document.createElement("canvas");
-
         canvas.width = Math.round(image.width * ratio);
         canvas.height = Math.round(image.height * ratio);
-
-        const ctx = canvas.getContext("2d");
-        ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
-
+        canvas.getContext("2d").drawImage(image, 0, 0, canvas.width, canvas.height);
         resolve(canvas.toDataURL("image/jpeg", 0.72));
       };
 
@@ -269,6 +258,44 @@ function fileToCompressedDataUrl(file) {
   });
 }
 
+function defaultAvailability() {
+  return {
+    mon: { enabled: true, slot: 30, intervals: [{ start: "09:00", end: "18:00" }] },
+    tue: { enabled: true, slot: 30, intervals: [{ start: "09:00", end: "18:00" }] },
+    wed: { enabled: true, slot: 30, intervals: [{ start: "09:00", end: "18:00" }] },
+    thu: { enabled: true, slot: 30, intervals: [{ start: "09:00", end: "18:00" }] },
+    fri: { enabled: true, slot: 30, intervals: [{ start: "09:00", end: "18:00" }] },
+    sat: { enabled: false, slot: 30, intervals: [{ start: "09:00", end: "12:00" }] },
+    sun: { enabled: false, slot: 30, intervals: [{ start: "09:00", end: "12:00" }] }
+  };
+}
+
+function addMonthsToDate(dateString, months) {
+  const base = dateString ? new Date(dateString + "T12:00:00") : new Date();
+  base.setMonth(base.getMonth() + months);
+  return `${base.getFullYear()}-${String(base.getMonth() + 1).padStart(2, "0")}-${String(base.getDate()).padStart(2, "0")}`;
+}
+
+function planMonths(plan) {
+  if (plan === "quarterly") return 3;
+  if (plan === "semiannual") return 6;
+  if (plan === "annual") return 12;
+  return 1;
+}
+
+function billingStatusLabel(user) {
+  if (user.blocked) return "Bloqueado";
+  if (!user.billingDueDate) return "Sem vencimento";
+  if (user.billingStatus === "paid" && user.billingDueDate >= today()) return "Em dia";
+  if (user.billingDueDate < today()) return "Vencido";
+  return "Pendente";
+}
+
+function publicBookingLink(user) {
+  const slug = user.slug || user.id;
+  return `${location.origin}${location.pathname}#book/${slug}`;
+}
+
 function renderAuth() {
   const mode = location.hash === "#register" ? "register" : "login";
 
@@ -276,13 +303,8 @@ function renderAuth() {
     <section class="auth-page modern-auth">
       <div class="auth-hero">
         <img src="logo.png" alt="BQ Agenda" class="auth-logo">
-
         <h1>Agenda online para negócios que vivem de horário.</h1>
-
-        <p>
-          Organize seus agendamentos, confirme pelo WhatsApp, acompanhe seus clientes
-          e controle seus ganhos em uma plataforma simples, web e pronta para usar.
-        </p>
+        <p>Organize seus agendamentos, confirme pelo WhatsApp, acompanhe seus clientes e controle seus ganhos em uma plataforma simples, web e pronta para usar.</p>
 
         <div class="auth-benefits">
           <div><strong>Agenda online</strong><span>Seu cliente escolhe serviço, data e horário pelo link público.</span></div>
@@ -290,7 +312,7 @@ function renderAuth() {
           <div><strong>Gestão completa</strong><span>Controle clientes, serviços, pagamentos, agenda e financeiro.</span></div>
         </div>
 
-        <small>By bqsystems</small>
+        <small>100% web, pronto para GitHub Pages e Firebase.</small>
       </div>
 
       <div class="auth-card">
@@ -393,6 +415,8 @@ function renderRegisterForm() {
         email: data.email,
         role: "establishment",
         status: "pending",
+        billingStatus: "pending",
+        billingDueDate: "",
         blocked: false,
         slug,
         bookingWindow: "month",
@@ -439,27 +463,13 @@ function renderRegisterForm() {
   renderIcons();
 }
 
-function defaultAvailability() {
-  return {
-    mon: { enabled: true, slot: 30, intervals: [{ start: "09:00", end: "18:00" }] },
-    tue: { enabled: true, slot: 30, intervals: [{ start: "09:00", end: "18:00" }] },
-    wed: { enabled: true, slot: 30, intervals: [{ start: "09:00", end: "18:00" }] },
-    thu: { enabled: true, slot: 30, intervals: [{ start: "09:00", end: "18:00" }] },
-    fri: { enabled: true, slot: 30, intervals: [{ start: "09:00", end: "18:00" }] },
-    sat: { enabled: false, slot: 30, intervals: [{ start: "09:00", end: "12:00" }] },
-    sun: { enabled: false, slot: 30, intervals: [{ start: "09:00", end: "12:00" }] }
-  };
-}
-
 function renderShell() {
   const admin = profile?.role === "admin";
 
   root.innerHTML = `
     <section class="app-shell">
       <aside class="sidebar">
-        <div class="brand">
-          <img src="logo.png" alt="BQ Agenda">
-        </div>
+        <div class="brand"><img src="logo.png" alt="BQ Agenda"></div>
 
         <nav>
           ${navButton("dashboard", "layout-dashboard", "Dashboard")}
@@ -475,14 +485,11 @@ function renderShell() {
         <button class="btn secondary" id="logoutBtn">${icon("log-out")} Sair</button>
       </aside>
 
-      <main class="content">
-        <div id="view"></div>
-      </main>
+      <main class="content"><div id="view"></div></main>
     </section>
   `;
 
   $("logoutBtn").onclick = () => signOut(auth);
-
   renderView();
   renderIcons();
 }
@@ -515,10 +522,7 @@ function renderDashboard() {
 
   $("view").innerHTML = `
     <header class="page-head">
-      <div>
-        <h1>Dashboard</h1>
-        <p>${profile.businessName || "BQ Agenda"}</p>
-      </div>
+      <div><h1>Dashboard</h1><p>${profile.businessName || "BQ Agenda"}</p></div>
     </header>
 
     <section class="metrics">
@@ -542,14 +546,13 @@ function renderDashboard() {
       </div>
     </section>
   `;
+
   renderIcons();
 }
 
 function renderAgenda() {
   $("view").innerHTML = `
-    <header class="page-head">
-      <div><h1>Agenda</h1><p>Crie e acompanhe os atendimentos.</p></div>
-    </header>
+    <header class="page-head"><div><h1>Agenda</h1><p>Crie e acompanhe os atendimentos.</p></div></header>
 
     <section class="panel">
       <form id="appointmentForm" class="form-grid">
@@ -592,6 +595,7 @@ function renderAgenda() {
 
   $("appointmentForm").onsubmit = async event => {
     event.preventDefault();
+
     await saveAppointment({
       clientName: $("apClientName").value.trim(),
       phone: $("apPhone").value,
@@ -603,6 +607,7 @@ function renderAgenda() {
       source: "manual",
       status: "confirmed"
     });
+
     $("appointmentForm").reset();
   };
 
@@ -671,6 +676,7 @@ function renderClientes() {
       </div>
     </section>
   `;
+
   renderIcons();
 }
 
@@ -797,7 +803,8 @@ function renderDisponibilidade() {
       <div class="availability-list">
         ${weekKeys.map(([key, label]) => {
           const day = availability[key] || { enabled: false, slot: 30, intervals: [{ start: "09:00", end: "18:00" }] };
-          const intervals = getDayIntervals(day).length ? getDayIntervals(day) : [{ start: "09:00", end: "18:00" }];
+          const rawIntervals = Array.isArray(day.intervals) && day.intervals.length ? day.intervals : getDayIntervals(day);
+          const intervals = rawIntervals.length ? rawIntervals : [{ start: "09:00", end: "18:00" }];
 
           return `
             <div class="availability-day">
@@ -835,18 +842,17 @@ function renderDisponibilidade() {
     const newAvailability = {};
 
     weekKeys.forEach(([key]) => {
-      const current = availability[key] || {};
-      const intervalCount = Math.max(1, (current.intervals || [{ start: "09:00", end: "18:00" }]).length);
+      const rows = Array.from(document.querySelectorAll(`#${key}Intervals .interval-row`));
       const intervals = [];
 
-      for (let index = 0; index < intervalCount; index++) {
+      rows.forEach((row, index) => {
         const start = $(`${key}Start${index}`)?.value;
         const end = $(`${key}End${index}`)?.value;
 
         if (start && end && timeToMinutes(start) < timeToMinutes(end)) {
           intervals.push({ start, end });
         }
-      }
+      });
 
       newAvailability[key] = {
         enabled: $(`${key}Enabled`).value === "true",
@@ -869,11 +875,12 @@ function renderDisponibilidade() {
 window.addAvailabilityInterval = async key => {
   const availability = profile.availability || defaultAvailability();
   const day = availability[key] || { enabled: true, slot: 30, intervals: [] };
-  const intervals = Array.isArray(day.intervals) && day.intervals.length ? day.intervals : getDayIntervals(day);
-
+  const intervals = Array.isArray(day.intervals) && day.intervals.length ? [...day.intervals] : getDayIntervals(day);
   intervals.push({ start: "13:00", end: "18:00" });
 
   await updateDoc(doc(db, "users", currentUser.uid), {
+    [`availability.${key}.enabled`]: day.enabled ?? true,
+    [`availability.${key}.slot`]: day.slot || 30,
     [`availability.${key}.intervals`]: intervals
   });
 };
@@ -882,7 +889,6 @@ window.removeAvailabilityInterval = async (key, index) => {
   const availability = profile.availability || defaultAvailability();
   const day = availability[key] || {};
   const intervals = Array.isArray(day.intervals) ? [...day.intervals] : getDayIntervals(day);
-
   intervals.splice(index, 1);
   if (!intervals.length) intervals.push({ start: "09:00", end: "18:00" });
 
@@ -963,59 +969,198 @@ function renderOnline() {
   renderIcons();
 }
 
+async function loadAdminBusinessData(userId) {
+  const [clientSnap, appointmentSnap, serviceSnap, transactionSnap] = await Promise.all([
+    getDocs(collection(db, "users", userId, "clients")),
+    getDocs(collection(db, "users", userId, "appointments")),
+    getDocs(collection(db, "users", userId, "services")),
+    getDocs(collection(db, "users", userId, "transactions"))
+  ]);
+
+  adminSelectedData = {
+    clients: clientSnap.docs.map(d => ({ id: d.id, ...d.data() })),
+    appointments: appointmentSnap.docs.map(d => ({ id: d.id, ...d.data() })),
+    services: serviceSnap.docs.map(d => ({ id: d.id, ...d.data() })),
+    transactions: transactionSnap.docs.map(d => ({ id: d.id, ...d.data() }))
+  };
+}
+
+function adminBusinessDetails(user) {
+  if (!user) return "";
+
+  const totalAppointments = adminSelectedData.appointments.length;
+  const pendingAppointments = adminSelectedData.appointments.filter(a => a.status === "pending").length;
+  const confirmedAppointments = adminSelectedData.appointments.filter(a => a.status === "confirmed").length;
+  const revenue = adminSelectedData.transactions
+    .filter(t => t.type === "income")
+    .reduce((sum, t) => sum + Number(t.amount || 0), 0);
+
+  const lastAppointments = [...adminSelectedData.appointments]
+    .sort((a, b) => `${b.date || ""}${b.time || ""}`.localeCompare(`${a.date || ""}${a.time || ""}`))
+    .slice(0, 8);
+
+  return `
+    <section class="panel admin-detail-panel">
+      <div class="admin-detail-head">
+        <div>
+          <h2>${user.businessName || "Estabelecimento"}</h2>
+          <p>${user.segment || "Sem segmento"} • ${user.city || "Sem cidade"}</p>
+        </div>
+
+        <div class="admin-detail-actions">
+          <button class="btn whatsapp" onclick="window.sendBillingReminder('${user.id}')">${icon("message-circle")} Cobrança</button>
+          <button class="btn secondary" onclick="window.markBusinessPaid('${user.id}')">${icon("check-circle")} Marcar pago</button>
+          <button class="btn danger" onclick="window.blockUser('${user.id}', ${!user.blocked})">${user.blocked ? "Desbloquear" : "Bloquear"}</button>
+        </div>
+      </div>
+
+      <div class="admin-detail-grid">
+        <div><span>Responsável</span><strong>${user.ownerName || "-"}</strong></div>
+        <div><span>E-mail</span><strong>${user.email || "-"}</strong></div>
+        <div><span>WhatsApp</span><strong>${user.whatsapp || "-"}</strong></div>
+        <div><span>Plano</span><strong>${plans[user.plan] || user.plan || "-"}</strong></div>
+        <div><span>Valor</span><strong>${money(user.planPrice || planPrices[user.plan] || 0)}</strong></div>
+        <div><span>Vencimento</span><strong>${user.billingDueDate ? formatDateBR(user.billingDueDate) : "-"}</strong></div>
+        <div><span>Cobrança</span><strong>${billingStatusLabel(user)}</strong></div>
+        <div><span>Status</span><strong>${user.status || "pending"}</strong></div>
+      </div>
+
+      <div class="share-box">
+        <strong>Link público do estabelecimento</strong>
+        <input readonly value="${publicBookingLink(user)}">
+      </div>
+
+      <div class="metrics compact-metrics">
+        <div class="metric"><span>Clientes</span><strong>${adminSelectedData.clients.length}</strong></div>
+        <div class="metric"><span>Agendamentos</span><strong>${totalAppointments}</strong></div>
+        <div class="metric"><span>Pendentes</span><strong>${pendingAppointments}</strong></div>
+        <div class="metric"><span>Confirmados</span><strong>${confirmedAppointments}</strong></div>
+        <div class="metric"><span>Serviços</span><strong>${adminSelectedData.services.length}</strong></div>
+        <div class="metric"><span>Financeiro</span><strong>${money(revenue)}</strong></div>
+      </div>
+
+      <div class="admin-columns">
+        <div>
+          <h3>Clientes cadastrados</h3>
+          <div class="list">
+            ${
+              adminSelectedData.clients.map(client => `
+                <article class="item">
+                  <div><strong>${client.name || "Cliente"}</strong><span>${client.phone || client.phoneKey || ""}</span></div>
+                  <a class="icon-btn" target="_blank" rel="noopener" href="${whatsappUrl(client.phone || client.phoneKey, "Olá! Tudo bem?")}">${icon("message-circle")}</a>
+                </article>
+              `).join("") || empty("Sem clientes", "Nenhum cliente cadastrado ainda.")
+            }
+          </div>
+        </div>
+
+        <div>
+          <h3>Últimos agendamentos</h3>
+          <div class="list">
+            ${
+              lastAppointments.map(a => `
+                <article class="item">
+                  <div><strong>${a.clientName || "Cliente"}</strong><span>${formatDateBR(a.date)} às ${a.time} • ${a.serviceName || ""} • ${a.status || "pending"}</span></div>
+                  <span>${money(a.servicePrice || 0)}</span>
+                </article>
+              `).join("") || empty("Sem agendamentos", "Nenhum agendamento encontrado.")
+            }
+          </div>
+        </div>
+      </div>
+    </section>
+  `;
+}
+
 function renderAdmin() {
-  const active = users.filter(u => u.status === "active" && !u.blocked).length;
-  const pending = users.filter(u => u.status === "pending").length;
-  const blocked = users.filter(u => u.blocked).length;
+  const establishments = users.filter(u => u.role !== "admin");
+  const active = establishments.filter(u => u.status === "active" && !u.blocked).length;
+  const pending = establishments.filter(u => u.status === "pending").length;
+  const blocked = establishments.filter(u => u.blocked).length;
+  const overdue = establishments.filter(u => u.billingDueDate && u.billingDueDate < today() && u.billingStatus !== "paid").length;
+  const estimatedRevenue = establishments
+    .filter(u => u.status === "active" && !u.blocked)
+    .reduce((sum, u) => sum + Number(u.planPrice || planPrices[u.plan] || 0), 0);
+
+  const selectedUser = establishments.find(u => u.id === adminSelectedUserId);
 
   $("view").innerHTML = `
-    <header class="page-head"><div><h1>Painel administrativo</h1><p>Controle estabelecimentos, planos e pendências.</p></div></header>
+    <header class="page-head">
+      <div><h1>Painel administrativo</h1><p>Controle estabelecimentos, planos, cobranças, clientes e uso da plataforma.</p></div>
+    </header>
 
     <section class="metrics">
       <div class="metric"><span>Ativos</span><strong>${active}</strong></div>
       <div class="metric"><span>Pendentes</span><strong>${pending}</strong></div>
       <div class="metric"><span>Bloqueados</span><strong>${blocked}</strong></div>
-      <div class="metric"><span>Total</span><strong>${users.length}</strong></div>
+      <div class="metric"><span>Vencidos</span><strong>${overdue}</strong></div>
+      <div class="metric"><span>Receita prevista</span><strong>${money(estimatedRevenue)}</strong></div>
+      <div class="metric"><span>Total</span><strong>${establishments.length}</strong></div>
     </section>
 
     <section class="panel">
       <h2>Estabelecimentos</h2>
       <div class="list">
-        ${users.filter(u => u.role !== "admin").map(u => `
-          <article class="item admin-item">
-            <div>
-              <strong>${u.businessName || u.email}</strong>
-              <span>${u.city || ""} • ${plans[u.plan] || u.plan || ""} • ${u.status || "pending"} ${u.blocked ? "• bloqueado" : ""}</span>
-            </div>
+        ${
+          establishments.map(u => `
+            <article class="item admin-item ${adminSelectedUserId === u.id ? "selected" : ""}">
+              <div>
+                <strong>${u.businessName || u.email}</strong>
+                <span>${u.ownerName || "Sem responsável"} • ${u.city || "Sem cidade"} • ${plans[u.plan] || u.plan || "Sem plano"} • ${billingStatusLabel(u)}</span>
+              </div>
 
-            <div class="admin-actions">
-              <select id="plan-${u.id}">
-                ${Object.entries(plans).map(([value, label]) => `<option value="${value}" ${u.plan === value ? "selected" : ""}>${label}</option>`).join("")}
-              </select>
-              <button class="btn secondary" onclick="window.savePlan('${u.id}')">Salvar plano</button>
-              <button class="btn primary" onclick="window.approveUser('${u.id}')">Aprovar</button>
-              <button class="btn danger" onclick="window.blockUser('${u.id}', ${!u.blocked})">${u.blocked ? "Desbloquear" : "Bloquear"}</button>
-            </div>
-          </article>
-        `).join("") || empty("Sem estabelecimentos", "Novos cadastros aparecerão aqui.")}
+              <div class="admin-actions">
+                <select id="plan-${u.id}">
+                  ${Object.entries(plans).map(([value, label]) => `<option value="${value}" ${u.plan === value ? "selected" : ""}>${label}</option>`).join("")}
+                </select>
+
+                <input id="due-${u.id}" type="date" value="${u.billingDueDate || ""}">
+                <button class="btn secondary" onclick="window.openAdminDetails('${u.id}')">Ver dados</button>
+                <button class="btn secondary" onclick="window.savePlan('${u.id}')">Salvar</button>
+                <button class="btn primary" onclick="window.approveUser('${u.id}')">Aprovar</button>
+                <button class="btn whatsapp" onclick="window.sendBillingReminder('${u.id}')">WhatsApp</button>
+                <button class="btn danger" onclick="window.blockUser('${u.id}', ${!u.blocked})">${u.blocked ? "Desbloquear" : "Bloquear"}</button>
+              </div>
+            </article>
+          `).join("") || empty("Sem estabelecimentos", "Novos cadastros aparecerão aqui.")
+        }
       </div>
     </section>
+
+    ${selectedUser ? adminBusinessDetails(selectedUser) : ""}
   `;
+
   renderIcons();
 }
 
+window.openAdminDetails = async id => {
+  adminSelectedUserId = id;
+  $("view").innerHTML = `<section class="panel"><h2>Carregando dados do estabelecimento...</h2></section>`;
+  await loadAdminBusinessData(id);
+  renderAdmin();
+};
+
 window.approveUser = async id => {
-  const user = users.find(u => u.id === id);
-  await updateDoc(doc(db, "users", id), { status: "active", blocked: false });
-  if (user?.slug) {
-    await setDoc(doc(db, "publicEstablishments", user.slug), {
+  const selected = users.find(u => u.id === id);
+  const dueInput = $(`due-${id}`)?.value || selected?.billingDueDate || addMonthsToDate(today(), planMonths(selected?.plan));
+
+  await updateDoc(doc(db, "users", id), {
+    status: "active",
+    blocked: false,
+    billingStatus: "paid",
+    billingDueDate: dueInput,
+    lastPaymentDate: today()
+  });
+
+  if (selected?.slug) {
+    await setDoc(doc(db, "publicEstablishments", selected.slug), {
       uid: id,
-      slug: user.slug,
-      businessName: user.businessName || "",
-      segment: user.segment || "",
-      city: user.city || "",
-      whatsapp: user.whatsapp || "",
-      photoURL: user.photoURL || "",
+      slug: selected.slug,
+      businessName: selected.businessName || "",
+      segment: selected.segment || "",
+      city: selected.city || "",
+      whatsapp: selected.whatsapp || "",
+      photoURL: selected.photoURL || "",
       status: "active",
       blocked: false
     }, { merge: true });
@@ -1023,19 +1168,82 @@ window.approveUser = async id => {
 };
 
 window.savePlan = async id => {
-  const plan = $(`plan-${id}`).value;
+  const selected = users.find(u => u.id === id);
+  const plan = $(`plan-${id}`)?.value || selected?.plan || "monthly";
+  const dueDate = $(`due-${id}`)?.value || selected?.billingDueDate || "";
+
   await updateDoc(doc(db, "users", id), {
     plan,
     planLabel: plans[plan],
-    planPrice: planPrices[plan] || 0
+    planPrice: planPrices[plan] || 0,
+    billingDueDate: dueDate,
+    updatedAt: serverTimestamp()
   });
+
+  alert("Plano e cobrança salvos.");
+};
+
+window.markBusinessPaid = async id => {
+  const selected = users.find(u => u.id === id);
+  const nextDueDate = addMonthsToDate(today(), planMonths(selected?.plan));
+
+  await updateDoc(doc(db, "users", id), {
+    billingStatus: "paid",
+    billingDueDate: nextDueDate,
+    lastPaymentDate: today(),
+    blocked: false,
+    updatedAt: serverTimestamp()
+  });
+
+  if (selected?.slug) {
+    await setDoc(doc(db, "publicEstablishments", selected.slug), {
+      blocked: false,
+      status: "active"
+    }, { merge: true });
+  }
+
+  alert(`Pagamento marcado. Próximo vencimento: ${formatDateBR(nextDueDate)}`);
+};
+
+window.sendBillingReminder = id => {
+  const selected = users.find(u => u.id === id);
+  if (!selected) return alert("Estabelecimento não encontrado.");
+  if (!selected.whatsapp) return alert("Este estabelecimento não possui WhatsApp cadastrado.");
+
+  const plan = plans[selected.plan] || selected.plan || "Plano";
+  const value = money(selected.planPrice || planPrices[selected.plan] || 0);
+  const dueDate = selected.billingDueDate ? formatDateBR(selected.billingDueDate) : "não informado";
+
+  const message = [
+    `Olá, ${selected.ownerName || selected.businessName || "tudo bem"}!`,
+    "",
+    "Aqui é da BQ Agenda.",
+    "",
+    `Identificamos uma pendência no cadastro do estabelecimento ${selected.businessName || ""}.`,
+    "",
+    `Plano: ${plan}`,
+    `Valor: ${value}`,
+    `Vencimento: ${dueDate}`,
+    "",
+    "Para manter sua agenda online ativa, regularize seu pagamento.",
+    "",
+    "Qualquer dúvida, estamos à disposição."
+  ].join("\n");
+
+  window.open(whatsappUrl(selected.whatsapp, message), "_blank");
 };
 
 window.blockUser = async (id, blocked) => {
-  const user = users.find(u => u.id === id);
-  await updateDoc(doc(db, "users", id), { blocked });
-  if (user?.slug) {
-    await setDoc(doc(db, "publicEstablishments", user.slug), { blocked }, { merge: true });
+  const selected = users.find(u => u.id === id);
+
+  await updateDoc(doc(db, "users", id), {
+    blocked,
+    billingStatus: blocked ? "blocked" : "pending",
+    updatedAt: serverTimestamp()
+  });
+
+  if (selected?.slug) {
+    await setDoc(doc(db, "publicEstablishments", selected.slug), { blocked }, { merge: true });
   }
 };
 
@@ -1065,10 +1273,7 @@ async function renderPublicBooking() {
       <section class="booking-page">
         <header class="booking-hero">
           ${publicProfile.photoURL ? `<img src="${publicProfile.photoURL}" alt="${publicProfile.businessName}">` : ""}
-          <div>
-            <strong>${publicProfile.businessName}</strong>
-            <span>${publicProfile.segment || ""} ${publicProfile.city ? `• ${publicProfile.city}` : ""}</span>
-          </div>
+          <div><strong>${publicProfile.businessName}</strong><span>${publicProfile.segment || ""} ${publicProfile.city ? `• ${publicProfile.city}` : ""}</span></div>
         </header>
 
         <form id="bookingForm" class="booking-card">
@@ -1113,9 +1318,7 @@ async function renderPublicBooking() {
 
       try {
         const clientSnap = await getDoc(doc(db, "users", uid, "clients", phoneKey));
-        if (clientSnap.exists() && clientSnap.data().name) {
-          $("bookName").value = clientSnap.data().name;
-        }
+        if (clientSnap.exists() && clientSnap.data().name) $("bookName").value = clientSnap.data().name;
       } catch (error) {
         console.warn(error);
       }
@@ -1277,6 +1480,7 @@ function renderBlockedOrPending() {
       </div>
     </section>
   `;
+
   renderIcons();
 }
 

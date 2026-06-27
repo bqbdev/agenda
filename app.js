@@ -10,6 +10,7 @@ import {
   getFirestore,
   doc,
   collection,
+  collectionGroup,
   getDoc,
   getDocs,
   setDoc,
@@ -18,6 +19,12 @@ import {
   onSnapshot,
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
+import {
+  getStorage,
+  ref,
+  uploadBytes,
+  getDownloadURL
+} from "https://www.gstatic.com/firebasejs/10.12.4/firebase-storage.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDLrhdAsAJYt68QKm6DDDRHCG2TT0eQXLQ",
@@ -31,23 +38,32 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
+const storage = getStorage(app);
 const root = document.querySelector("#root");
 
 let user = null;
 let profile = null;
 let tab = "dashboard";
-
 let users = [];
 let clients = [];
 let services = [];
 let appointments = [];
 let transactions = [];
+let adminAppointments = [];
+let adminTransactions = [];
 
 const plans = {
   monthly: "Mensal",
   quarterly: "Trimestral",
   semiannual: "Semestral",
   annual: "Anual"
+};
+
+const planPrices = {
+  monthly: 49.9,
+  quarterly: 129.9,
+  semiannual: 239.9,
+  annual: 399.9
 };
 
 const paymentMethods = {
@@ -59,22 +75,17 @@ const paymentMethods = {
   other: "Outro"
 };
 
+const $ = id => document.getElementById(id);
 const today = () => new Date().toISOString().slice(0, 10);
-
-const money = value =>
-  Number(value || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-
 const onlyDigits = value => String(value || "").replace(/\D/g, "");
-
-const icons = () => {
-  if (window.lucide) window.lucide.createIcons();
-};
-
+const money = value => Number(value || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+const icons = () => window.lucide && window.lucide.createIcons();
 const userRef = uid => doc(db, "users", uid);
 const col = name => collection(db, "users", user.uid, name);
 const itemRef = (name, id) => doc(db, "users", user.uid, name, id);
 const tenantCol = (uid, name) => collection(db, "users", uid, name);
 const tenantDoc = (uid, name, id) => doc(db, "users", uid, name, id);
+const empty = text => `<div class="empty">${text}</div>`;
 
 function planExpiration(plan) {
   const d = new Date();
@@ -86,56 +97,67 @@ function planExpiration(plan) {
 }
 
 function isExpired(date) {
-  return date && date < today();
-}
-
-function empty(text) {
-  return `<div class="empty">${text}</div>`;
+  return Boolean(date && date < today());
 }
 
 function renderAuth() {
   root.innerHTML = `
-    <section class="auth">
-      <div class="auth-box">
-        <h1>BQ Agenda</h1>
-        <p>Agenda web para estabelecimentos, com painel administrativo BQ.</p>
+    <section class="auth-page">
+      <div class="auth-hero">
+        <div class="auth-brand">BQ Agenda</div>
 
-        <div class="tabs">
-          <button id="loginTab" class="active">Entrar</button>
-          <button id="registerTab">Cadastrar estabelecimento</button>
+        <div class="auth-copy">
+          <h1>Gestao de agenda para negocios que vivem de horario.</h1>
+          <p>Controle estabelecimentos, clientes, servicos, pagamentos e indicadores em uma plataforma web simples de operar.</p>
+
+          <div class="auth-points">
+            <div class="auth-point"><strong>Agenda online</strong><span>Clientes agendam pelo link publico.</span></div>
+            <div class="auth-point"><strong>Painel BQ</strong><span>Aprove, bloqueie e monitore planos.</span></div>
+            <div class="auth-point"><strong>BI do negocio</strong><span>Acompanhe uso, pendencias e crescimento.</span></div>
+          </div>
         </div>
 
-        <div id="authView"></div>
+        <small>100% web, pronto para GitHub Pages e Firebase.</small>
+      </div>
+
+      <div class="auth-panel-wrap">
+        <div class="auth-box">
+          <h2>Acessar plataforma</h2>
+          <p>Entre ou envie o cadastro do estabelecimento para analise.</p>
+
+          <div class="tabs">
+            <button id="loginTab" class="active">Entrar</button>
+            <button id="registerTab">Cadastrar estabelecimento</button>
+          </div>
+
+          <div id="authView"></div>
+        </div>
       </div>
     </section>
   `;
 
-  loginTab.onclick = renderLoginForm;
-  registerTab.onclick = renderRegisterForm;
-
+  $("loginTab").onclick = renderLoginForm;
+  $("registerTab").onclick = renderRegisterForm;
   renderLoginForm();
 }
 
 function setAuthTab(active) {
-  loginTab.classList.toggle("active", active === "login");
-  registerTab.classList.toggle("active", active === "register");
+  $("loginTab").classList.toggle("active", active === "login");
+  $("registerTab").classList.toggle("active", active === "register");
 }
 
 function renderLoginForm() {
   setAuthTab("login");
 
-  authView.innerHTML = `
+  $("authView").innerHTML = `
     <form id="loginForm" class="form">
       <input name="email" type="email" placeholder="E-mail" required>
       <input name="password" type="password" placeholder="Senha" required>
-      <button class="btn" type="submit">
-        <i data-lucide="log-in"></i>
-        Entrar
-      </button>
+      <button class="btn" type="submit"><i data-lucide="log-in"></i>Entrar</button>
     </form>
   `;
 
-  loginForm.onsubmit = async event => {
+  $("loginForm").onsubmit = async event => {
     event.preventDefault();
     const data = Object.fromEntries(new FormData(event.target));
     await signInWithEmailAndPassword(auth, data.email, data.password);
@@ -147,13 +169,15 @@ function renderLoginForm() {
 function renderRegisterForm() {
   setAuthTab("register");
 
-  authView.innerHTML = `
+  $("authView").innerHTML = `
     <form id="registerForm" class="form">
       <input name="ownerName" placeholder="Nome do responsavel" required>
       <input name="businessName" placeholder="Nome do estabelecimento" required>
-      <input name="segment" placeholder="Segmento: salao, barbearia, clinica..." required>
-      <input name="city" placeholder="Cidade" required>
-      <input name="phone" placeholder="WhatsApp" required>
+      <input name="segment" placeholder="Segmento" required>
+      <div class="row">
+        <input name="city" placeholder="Cidade" required>
+        <input name="phone" placeholder="WhatsApp" required>
+      </div>
       <select name="plan" required>
         <option value="monthly">Plano mensal</option>
         <option value="quarterly">Plano trimestral</option>
@@ -162,14 +186,11 @@ function renderRegisterForm() {
       </select>
       <input name="email" type="email" placeholder="E-mail" required>
       <input name="password" type="password" placeholder="Senha" minlength="6" required>
-      <button class="btn" type="submit">
-        <i data-lucide="send"></i>
-        Enviar cadastro para analise
-      </button>
+      <button class="btn" type="submit"><i data-lucide="send"></i>Enviar para analise</button>
     </form>
   `;
 
-  registerForm.onsubmit = async event => {
+  $("registerForm").onsubmit = async event => {
     event.preventDefault();
     const data = Object.fromEntries(new FormData(event.target));
     const credential = await createUserWithEmailAndPassword(auth, data.email, data.password);
@@ -188,6 +209,7 @@ function renderRegisterForm() {
       phone: onlyDigits(data.phone),
       email: data.email,
       publicBooking: true,
+      photoURL: "",
       createdAt: serverTimestamp()
     });
   };
@@ -204,7 +226,7 @@ function renderNotice(title, text) {
     </section>
   `;
 
-  logoutBtn.onclick = () => signOut(auth);
+  $("logoutBtn").onclick = () => signOut(auth);
 }
 
 function canAccessApp() {
@@ -217,34 +239,46 @@ function canAccessApp() {
   return true;
 }
 
+function nav(id, icon, label) {
+  return `
+    <button class="${tab === id ? "active" : ""}" data-tab="${id}">
+      <i data-lucide="${icon}"></i>${label}
+    </button>
+  `;
+}
+
 function renderShell() {
   const isAdmin = profile.role === "admin";
 
   const titleMap = {
-    admin: "Painel BQ",
+    admin: "BI Administrativo BQ",
     dashboard: "Resumo",
     agenda: "Agenda",
     clientes: "Clientes",
     servicos: "Servicos",
     financeiro: "Financeiro",
-    online: "Agendamento online"
+    online: "Perfil e agendamento"
   };
 
   root.innerHTML = `
     <section class="app">
       <aside class="sidebar">
-        <div class="brand">BQ Agenda</div>
+        <div class="brand">
+          <strong>BQ Agenda</strong>
+          <span>${isAdmin ? "Painel administrativo" : profile.businessName || "Estabelecimento"}</span>
+        </div>
+
         <nav class="nav">
           ${
             isAdmin
-              ? nav("admin", "shield-check", "Admin")
+              ? nav("admin", "chart-no-axes-combined", "BI")
               : `
                 ${nav("dashboard", "layout-dashboard", "Resumo")}
                 ${nav("agenda", "calendar-days", "Agenda")}
                 ${nav("clientes", "users", "Clientes")}
                 ${nav("servicos", "scissors", "Servicos")}
                 ${nav("financeiro", "wallet", "Financeiro")}
-                ${nav("online", "link", "Online")}
+                ${nav("online", "image", "Perfil")}
               `
           }
         </nav>
@@ -252,13 +286,11 @@ function renderShell() {
 
       <section class="content">
         <header class="topbar">
-          <h2>${titleMap[tab]}</h2>
-          <div class="actions">
-            <button class="btn secondary" id="logoutBtn">
-              <i data-lucide="log-out"></i>
-              Sair
-            </button>
+          <div>
+            <h2>${titleMap[tab]}</h2>
+            <p>${isAdmin ? "Acompanhe operacao, planos, pendencias e uso da plataforma." : "Gerencie sua rotina em um unico lugar."}</p>
           </div>
+          <button class="btn secondary" id="logoutBtn"><i data-lucide="log-out"></i>Sair</button>
         </header>
 
         <div id="view"></div>
@@ -273,7 +305,7 @@ function renderShell() {
     };
   });
 
-  logoutBtn.onclick = () => signOut(auth);
+  $("logoutBtn").onclick = () => signOut(auth);
 
   if (isAdmin) renderAdmin();
   if (!isAdmin && tab === "dashboard") renderDashboard();
@@ -286,40 +318,27 @@ function renderShell() {
   icons();
 }
 
-function nav(id, icon, label) {
-  return `
-    <button class="${tab === id ? "active" : ""}" data-tab="${id}">
-      <i data-lucide="${icon}"></i>
-      ${label}
-    </button>
-  `;
-}
-
 function renderDashboard() {
-  const paidAppointments = appointments.filter(a => a.paymentStatus === "paid");
   const month = today().slice(0, 7);
-
-  const monthGain = paidAppointments
-    .filter(a => (a.date || "").startsWith(month))
+  const paidMonth = appointments
+    .filter(a => (a.date || "").startsWith(month) && a.paymentStatus === "paid")
     .reduce((sum, a) => sum + Number(a.price || 0), 0);
 
-  const pending = appointments
+  const pendingMoney = appointments
     .filter(a => a.paymentStatus !== "paid")
     .reduce((sum, a) => sum + Number(a.price || 0), 0);
 
   view.innerHTML = `
     <div class="grid cards">
-      <div class="card"><small>Ganhos do mes</small><strong>${money(monthGain)}</strong></div>
-      <div class="card"><small>Valores pendentes</small><strong>${money(pending)}</strong></div>
+      <div class="card"><small>Ganhos do mes</small><strong>${money(paidMonth)}</strong></div>
+      <div class="card"><small>Valores pendentes</small><strong>${money(pendingMoney)}</strong></div>
       <div class="card"><small>Clientes</small><strong>${clients.length}</strong></div>
       <div class="card"><small>Agendamentos</small><strong>${appointments.length}</strong></div>
     </div>
 
     <div class="panel" style="margin-top:16px">
       <h3>Proximos agendamentos</h3>
-      <div class="list">
-        ${appointments.slice(0, 8).map(appointmentItem).join("") || empty("Nenhum agendamento.")}
-      </div>
+      <div class="list">${appointments.slice(0, 8).map(appointmentItem).join("") || empty("Nenhum agendamento.")}</div>
     </div>
   `;
 }
@@ -339,9 +358,7 @@ function renderAgenda() {
           <input name="date" type="date" value="${today()}" required>
           <input name="time" type="time" required>
         </div>
-        <select name="paymentMethod">
-          ${Object.entries(paymentMethods).map(([k, v]) => `<option value="${k}">${v}</option>`).join("")}
-        </select>
+        <select name="paymentMethod">${Object.entries(paymentMethods).map(([k, v]) => `<option value="${k}">${v}</option>`).join("")}</select>
         <select name="paymentStatus">
           <option value="pending">Pagamento pendente</option>
           <option value="paid">Pago</option>
@@ -353,26 +370,22 @@ function renderAgenda() {
 
       <div class="panel">
         <h3>Agenda</h3>
-        <div class="list">
-          ${appointments.map(appointmentItem).join("") || empty("Nenhum agendamento.")}
-        </div>
+        <div class="list">${appointments.map(appointmentItem).join("") || empty("Nenhum agendamento.")}</div>
       </div>
     </div>
   `;
 
-  appointmentForm.onsubmit = saveAppointment;
+  $("appointmentForm").onsubmit = saveAppointment;
 }
 
 async function saveAppointment(event) {
   event.preventDefault();
-
   const data = Object.fromEntries(new FormData(event.target));
   const phoneKey = onlyDigits(data.clientPhone);
   const service = services.find(s => s.id === data.serviceId);
-  const clientId = phoneKey;
 
-  await setDoc(itemRef("clients", clientId), {
-    id: clientId,
+  await setDoc(itemRef("clients", phoneKey), {
+    id: phoneKey,
     phoneKey,
     name: data.clientName,
     phone: phoneKey,
@@ -381,7 +394,7 @@ async function saveAppointment(event) {
   }, { merge: true });
 
   await addDoc(col("appointments"), {
-    clientId,
+    clientId: phoneKey,
     clientName: data.clientName,
     clientPhone: phoneKey,
     serviceId: data.serviceId,
@@ -402,19 +415,15 @@ async function saveAppointment(event) {
 
 function appointmentItem(a) {
   const phone = onlyDigits(a.clientPhone);
-  const msg = encodeURIComponent(
-    `Ola ${a.clientName}, seu horario em ${a.date} as ${a.time} esta registrado.`
-  );
+  const msg = encodeURIComponent(`Ola ${a.clientName}, seu horario em ${a.date} as ${a.time} esta registrado.`);
 
   return `
     <article class="item">
       <div class="item-head">
         <strong>${a.clientName}</strong>
-        <span class="badge ${a.paymentStatus === "paid" ? "paid" : "pending"}">
-          ${a.paymentStatus === "paid" ? "Pago" : "Pendente"}
-        </span>
+        <span class="badge ${a.paymentStatus === "paid" ? "paid" : "pending"}">${a.paymentStatus === "paid" ? "Pago" : "Pendente"}</span>
       </div>
-      <span>${a.date} as ${a.time} - ${a.serviceName || "Servico"}</span>
+      <span>${a.date || ""} as ${a.time || ""} - ${a.serviceName || "Servico"}</span>
       <span>${money(a.price)} - ${paymentMethods[a.paymentMethod] || "Sem forma"}</span>
       <div class="actions">
         ${phone ? `<a class="btn secondary" target="_blank" href="https://wa.me/55${phone}?text=${msg}">WhatsApp</a>` : ""}
@@ -425,10 +434,7 @@ function appointmentItem(a) {
   `;
 }
 
-window.markPaid = async id => {
-  await setDoc(itemRef("appointments", id), { paymentStatus: "paid" }, { merge: true });
-};
-
+window.markPaid = async id => setDoc(itemRef("appointments", id), { paymentStatus: "paid" }, { merge: true });
 window.removeAppointment = async id => {
   if (confirm("Excluir agendamento?")) await deleteDoc(itemRef("appointments", id));
 };
@@ -446,14 +452,12 @@ function renderClientes() {
 
       <div class="panel">
         <h3>Base de clientes</h3>
-        <div class="list">
-          ${clients.map(clientItem).join("") || empty("Nenhum cliente.")}
-        </div>
+        <div class="list">${clients.map(clientItem).join("") || empty("Nenhum cliente.")}</div>
       </div>
     </div>
   `;
 
-  clientForm.onsubmit = async event => {
+  $("clientForm").onsubmit = async event => {
     event.preventDefault();
     const data = Object.fromEntries(new FormData(event.target));
     const phoneKey = onlyDigits(data.phone);
@@ -504,14 +508,12 @@ function renderServicos() {
 
       <div class="panel">
         <h3>Servicos</h3>
-        <div class="list">
-          ${services.map(serviceItem).join("") || empty("Nenhum servico.")}
-        </div>
+        <div class="list">${services.map(serviceItem).join("") || empty("Nenhum servico.")}</div>
       </div>
     </div>
   `;
 
-  serviceForm.onsubmit = async event => {
+  $("serviceForm").onsubmit = async event => {
     event.preventDefault();
     const data = Object.fromEntries(new FormData(event.target));
 
@@ -548,18 +550,12 @@ window.removeService = async id => {
 function renderFinanceiro() {
   const paid = appointments.filter(a => a.paymentStatus === "paid");
   const pending = appointments.filter(a => a.paymentStatus !== "paid");
-
   const totalPaid = paid.reduce((sum, a) => sum + Number(a.price || 0), 0);
   const totalPending = pending.reduce((sum, a) => sum + Number(a.price || 0), 0);
-  const expenses = transactions
-    .filter(t => t.type === "expense")
-    .reduce((sum, t) => sum + Number(t.value || 0), 0);
+  const expenses = transactions.filter(t => t.type === "expense").reduce((sum, t) => sum + Number(t.value || 0), 0);
 
   const byMethod = Object.keys(paymentMethods).map(method => {
-    const total = paid
-      .filter(a => a.paymentMethod === method)
-      .reduce((sum, a) => sum + Number(a.price || 0), 0);
-
+    const total = paid.filter(a => a.paymentMethod === method).reduce((sum, a) => sum + Number(a.price || 0), 0);
     return `<div class="item"><strong>${paymentMethods[method]}</strong><span>${money(total)}</span></div>`;
   }).join("");
 
@@ -583,13 +579,13 @@ function renderFinanceiro() {
       </form>
 
       <div class="panel">
-        <h3>Ganhos por forma de pagamento</h3>
+        <h3>Ganhos por pagamento</h3>
         <div class="list">${byMethod}</div>
       </div>
     </div>
   `;
 
-  expenseForm.onsubmit = async event => {
+  $("expenseForm").onsubmit = async event => {
     event.preventDefault();
     const data = Object.fromEntries(new FormData(event.target));
 
@@ -607,18 +603,25 @@ function renderFinanceiro() {
 
 function renderOnline() {
   const link = `${location.origin}${location.pathname}#book?pro=${user.uid}`;
+  const cover = profile.photoURL
+    ? `<div class="profile-cover" style="background-image:url('${profile.photoURL}')"></div>`
+    : `<div class="profile-cover empty-cover">Sem imagem do estabelecimento</div>`;
 
   view.innerHTML = `
     <div class="grid two">
       <form id="settingsForm" class="panel form">
-        <h3>Dados publicos</h3>
+        <h3>Perfil publico</h3>
+        ${cover}
+        <label>Imagem do estabelecimento
+          <input name="photo" type="file" accept="image/*">
+        </label>
         <input name="businessName" value="${profile.businessName || ""}" placeholder="Nome do estabelecimento">
         <input name="phone" value="${profile.phone || ""}" placeholder="WhatsApp">
         <select name="publicBooking">
           <option value="true" ${profile.publicBooking !== false ? "selected" : ""}>Agendamento ativo</option>
           <option value="false" ${profile.publicBooking === false ? "selected" : ""}>Agendamento pausado</option>
         </select>
-        <button class="btn" type="submit">Salvar</button>
+        <button class="btn" type="submit">Salvar perfil</button>
       </form>
 
       <div class="panel">
@@ -633,39 +636,134 @@ function renderOnline() {
     </div>
   `;
 
-  settingsForm.onsubmit = async event => {
+  $("settingsForm").onsubmit = async event => {
     event.preventDefault();
-    const data = Object.fromEntries(new FormData(event.target));
+    const form = event.target;
+    const data = Object.fromEntries(new FormData(form));
+    let photoURL = profile.photoURL || "";
+    const file = form.photo.files[0];
+
+    if (file) {
+      const imageRef = ref(storage, `profileImages/${user.uid}/${Date.now()}-${file.name}`);
+      await uploadBytes(imageRef, file);
+      photoURL = await getDownloadURL(imageRef);
+    }
 
     await setDoc(userRef(user.uid), {
       businessName: data.businessName,
       phone: onlyDigits(data.phone),
       publicBooking: data.publicBooking === "true",
+      photoURL,
       updatedAt: serverTimestamp()
     }, { merge: true });
   };
 }
 
 function renderAdmin() {
-  const pending = users.filter(u => u.role === "establishment" && u.status === "pending").length;
-  const active = users.filter(u => u.role === "establishment" && u.status === "active" && !u.blocked).length;
-  const blocked = users.filter(u => u.role === "establishment" && u.blocked).length;
-  const overdue = users.filter(u => isExpired(u.planExpiresAt)).length;
+  const establishments = users.filter(u => u.role === "establishment");
+  const pending = establishments.filter(u => u.status === "pending").length;
+  const active = establishments.filter(u => u.status === "active" && !u.blocked && !isExpired(u.planExpiresAt)).length;
+  const blocked = establishments.filter(u => u.blocked).length;
+  const expired = establishments.filter(u => isExpired(u.planExpiresAt)).length;
+  const month = today().slice(0, 7);
+
+  const appointmentsToday = adminAppointments.filter(a => a.date === today()).length;
+  const appointmentsMonth = adminAppointments.filter(a => (a.date || "").startsWith(month)).length;
+  const paidMonth = adminAppointments.filter(a => (a.date || "").startsWith(month) && a.paymentStatus === "paid").reduce((sum, a) => sum + Number(a.price || 0), 0);
+  const pendingMoney = adminAppointments.filter(a => a.paymentStatus !== "paid").reduce((sum, a) => sum + Number(a.price || 0), 0);
+
+  const bqMonthlyRevenue = establishments
+    .filter(u => u.status === "active" && !u.blocked && !isExpired(u.planExpiresAt))
+    .reduce((sum, u) => sum + Number(planPrices[u.plan] || 0), 0);
+
+  const planCount = {
+    monthly: establishments.filter(u => u.plan === "monthly").length,
+    quarterly: establishments.filter(u => u.plan === "quarterly").length,
+    semiannual: establishments.filter(u => u.plan === "semiannual").length,
+    annual: establishments.filter(u => u.plan === "annual").length
+  };
+
+  const ranking = establishments.map(est => {
+    const estAppointments = adminAppointments.filter(a => a.establishmentId === est.id);
+    const revenue = estAppointments.filter(a => a.paymentStatus === "paid").reduce((sum, a) => sum + Number(a.price || 0), 0);
+    return { ...est, appointmentsCount: estAppointments.length, revenue };
+  }).sort((a, b) => b.appointmentsCount - a.appointmentsCount).slice(0, 8);
 
   view.innerHTML = `
     <div class="grid cards">
-      <div class="card"><small>Pendentes</small><strong>${pending}</strong></div>
       <div class="card"><small>Ativos</small><strong>${active}</strong></div>
+      <div class="card"><small>Pendentes</small><strong>${pending}</strong></div>
       <div class="card"><small>Bloqueados</small><strong>${blocked}</strong></div>
-      <div class="card"><small>Vencidos</small><strong>${overdue}</strong></div>
+      <div class="card"><small>Vencidos</small><strong>${expired}</strong></div>
+    </div>
+
+    <div class="grid cards" style="margin-top:16px">
+      <div class="card"><small>Agendamentos hoje</small><strong>${appointmentsToday}</strong></div>
+      <div class="card"><small>Agendamentos no mes</small><strong>${appointmentsMonth}</strong></div>
+      <div class="card"><small>Movimentado no mes</small><strong>${money(paidMonth)}</strong></div>
+      <div class="card"><small>Pendente nos estabelecimentos</small><strong>${money(pendingMoney)}</strong></div>
+    </div>
+
+    <div class="grid cards" style="margin-top:16px">
+      <div class="card"><small>Receita BQ estimada</small><strong>${money(bqMonthlyRevenue)}</strong></div>
+      <div class="card"><small>Mensais</small><strong>${planCount.monthly}</strong></div>
+      <div class="card"><small>Trimestrais</small><strong>${planCount.quarterly}</strong></div>
+      <div class="card"><small>Anuais</small><strong>${planCount.annual}</strong></div>
+    </div>
+
+    <div class="grid two" style="margin-top:16px">
+      <div class="panel">
+        <h3>Ranking de uso</h3>
+        <div class="list">${ranking.map(adminRankingItem).join("") || empty("Nenhum dado ainda.")}</div>
+      </div>
+
+      <div class="panel">
+        <h3>Pendencias</h3>
+        <div class="list">
+          ${establishments
+            .filter(u => u.status === "pending" || u.blocked || isExpired(u.planExpiresAt) || u.paymentStatus !== "paid")
+            .map(adminPendingItem)
+            .join("") || empty("Nenhuma pendencia.")}
+        </div>
+      </div>
     </div>
 
     <div class="panel" style="margin-top:16px">
       <h3>Estabelecimentos</h3>
-      <div class="list">
-        ${users.filter(u => u.role === "establishment").map(adminUserItem).join("") || empty("Nenhum cadastro.")}
-      </div>
+      <div class="list">${establishments.map(adminUserItem).join("") || empty("Nenhum estabelecimento cadastrado.")}</div>
     </div>
+  `;
+}
+
+function adminRankingItem(est) {
+  return `
+    <article class="item">
+      <div class="item-head">
+        <strong>${est.businessName || "Sem nome"}</strong>
+        <span class="badge active">${est.appointmentsCount} agendamentos</span>
+      </div>
+      <span class="muted">${est.city || ""} - ${plans[est.plan] || "Sem plano"}</span>
+      <span>Faturamento registrado: ${money(est.revenue)}</span>
+    </article>
+  `;
+}
+
+function adminPendingItem(est) {
+  let reason = "Pendente";
+  if (est.blocked) reason = "Bloqueado";
+  else if (isExpired(est.planExpiresAt)) reason = "Plano vencido";
+  else if (est.paymentStatus !== "paid") reason = "Pagamento pendente";
+  else if (est.status === "pending") reason = "Aguardando aprovacao";
+
+  return `
+    <article class="item">
+      <div class="item-head">
+        <strong>${est.businessName || "Sem nome"}</strong>
+        <span class="badge pending">${reason}</span>
+      </div>
+      <span>${est.ownerName || ""} - ${est.phone || ""}</span>
+      <span>Plano: ${plans[est.plan] || "-"} - Vence: ${est.planExpiresAt || "-"}</span>
+    </article>
   `;
 }
 
@@ -684,21 +782,16 @@ function adminUserItem(u) {
         <select id="plan-${u.id}">
           ${Object.entries(plans).map(([k, v]) => `<option value="${k}" ${u.plan === k ? "selected" : ""}>${v}</option>`).join("")}
         </select>
-
         <button class="btn ok" onclick="window.approveUser('${u.id}')">Aprovar pago</button>
         <button class="btn secondary" onclick="window.savePlan('${u.id}')">Alterar plano</button>
-        <button class="btn danger" onclick="window.blockUser('${u.id}', ${!u.blocked})">
-          ${u.blocked ? "Desbloquear" : "Bloquear"}
-        </button>
+        <button class="btn danger" onclick="window.blockUser('${u.id}', ${!u.blocked})">${u.blocked ? "Desbloquear" : "Bloquear"}</button>
       </div>
     </article>
   `;
 }
 
 window.approveUser = async uid => {
-  const select = document.getElementById(`plan-${uid}`);
-  const plan = select.value;
-
+  const plan = $(`plan-${uid}`).value;
   await setDoc(userRef(uid), {
     status: "active",
     blocked: false,
@@ -710,9 +803,7 @@ window.approveUser = async uid => {
 };
 
 window.savePlan = async uid => {
-  const select = document.getElementById(`plan-${uid}`);
-  const plan = select.value;
-
+  const plan = $(`plan-${uid}`).value;
   await setDoc(userRef(uid), {
     plan,
     planExpiresAt: planExpiration(plan),
@@ -728,7 +819,7 @@ async function renderPublicBooking(uid) {
   const profileSnap = await getDoc(userRef(uid));
   const publicProfile = profileSnap.data();
 
-  if (!publicProfile || publicProfile.publicBooking === false || publicProfile.status !== "active" || publicProfile.blocked) {
+  if (!publicProfile || publicProfile.publicBooking === false || publicProfile.status !== "active" || publicProfile.blocked || isExpired(publicProfile.planExpiresAt)) {
     root.innerHTML = `
       <section class="notice">
         <h1>Agendamento indisponivel</h1>
@@ -740,40 +831,40 @@ async function renderPublicBooking(uid) {
 
   const servicesSnap = await getDocs(tenantCol(uid, "services"));
   const publicServices = servicesSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+  const heroPhoto = publicProfile.photoURL || "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?auto=format&fit=crop&w=1600&q=80";
 
   root.innerHTML = `
     <section class="public-page">
-      <header class="public-header">
-        <h1>${publicProfile.businessName}</h1>
-        <p class="muted">Escolha o servico, data e horario. Voce nao precisa criar conta.</p>
+      <header class="public-hero" style="--photo:url('${heroPhoto}')">
+        <div>
+          <h1>${publicProfile.businessName}</h1>
+          <p>${publicProfile.segment || "Agendamento online"} · ${publicProfile.city || ""}</p>
+        </div>
       </header>
 
-      <form id="publicForm" class="panel form">
-        <input name="clientName" placeholder="Seu nome" required>
-        <input name="clientPhone" placeholder="Seu WhatsApp" required>
-        <select name="serviceId" required>
-          <option value="">Escolha um servico</option>
-          ${publicServices.map(s => `<option value="${s.id}">${s.name} - ${money(s.price)}</option>`).join("")}
-        </select>
-        <div class="row">
-          <input name="date" type="date" min="${today()}" required>
-          <input name="time" type="time" required>
-        </div>
-        <select name="paymentMethod">
-          ${Object.entries(paymentMethods).map(([k, v]) => `<option value="${k}">${v}</option>`).join("")}
-        </select>
-        <textarea name="notes" placeholder="Observacoes"></textarea>
-        <button class="btn" type="submit">
-          <i data-lucide="calendar-plus"></i>
-          Solicitar agendamento
-        </button>
-      </form>
+      <div class="public-content">
+        <form id="publicForm" class="panel form">
+          <h3>Solicitar horario</h3>
+          <input name="clientName" placeholder="Seu nome" required>
+          <input name="clientPhone" placeholder="Seu WhatsApp" required>
+          <select name="serviceId" required>
+            <option value="">Escolha um servico</option>
+            ${publicServices.map(s => `<option value="${s.id}">${s.name} - ${money(s.price)}</option>`).join("")}
+          </select>
+          <div class="row">
+            <input name="date" type="date" min="${today()}" required>
+            <input name="time" type="time" required>
+          </div>
+          <select name="paymentMethod">${Object.entries(paymentMethods).map(([k, v]) => `<option value="${k}">${v}</option>`).join("")}</select>
+          <textarea name="notes" placeholder="Observacoes"></textarea>
+          <button class="btn" type="submit"><i data-lucide="calendar-plus"></i>Solicitar agendamento</button>
+        </form>
+      </div>
     </section>
   `;
 
-  publicForm.onsubmit = async event => {
+  $("publicForm").onsubmit = async event => {
     event.preventDefault();
-
     const data = Object.fromEntries(new FormData(event.target));
     const phoneKey = onlyDigits(data.clientPhone);
     const service = publicServices.find(s => s.id === data.serviceId);
@@ -816,6 +907,11 @@ async function renderPublicBooking(uid) {
 }
 
 function subscribeEstablishment() {
+  onSnapshot(userRef(user.uid), snap => {
+    profile = snap.data();
+    renderShell();
+  });
+
   onSnapshot(col("clients"), snap => {
     clients = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     renderShell();
@@ -842,6 +938,22 @@ function subscribeEstablishment() {
 function subscribeAdmin() {
   onSnapshot(collection(db, "users"), snap => {
     users = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    renderShell();
+  });
+
+  onSnapshot(collectionGroup(db, "appointments"), snap => {
+    adminAppointments = snap.docs.map(d => {
+      const path = d.ref.path.split("/");
+      return { id: d.id, establishmentId: path[1], ...d.data() };
+    });
+    renderShell();
+  });
+
+  onSnapshot(collectionGroup(db, "transactions"), snap => {
+    adminTransactions = snap.docs.map(d => {
+      const path = d.ref.path.split("/");
+      return { id: d.id, establishmentId: path[1], ...d.data() };
+    });
     renderShell();
   });
 }
@@ -881,10 +993,7 @@ onAuthStateChanged(auth, async currentUser => {
   }
 
   if (profile.status === "pending") {
-    renderNotice(
-      "Cadastro enviado para analise",
-      "A equipe BQ entrara em contato para finalizar o pagamento e liberar seu acesso."
-    );
+    renderNotice("Cadastro enviado para analise", "A equipe BQ entrara em contato para finalizar o pagamento e liberar seu acesso.");
     return;
   }
 

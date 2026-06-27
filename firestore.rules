@@ -25,6 +25,15 @@ service cloud.firestore {
         && userDoc.data.paymentStatus == "paid";
     }
 
+    match /publicEstablishments/{slug} {
+      allow read: if true;
+
+      allow create, update: if signedIn()
+        && request.resource.data.uid == request.auth.uid;
+
+      allow delete: if isAdmin();
+    }
+
     match /users/{userId} {
       allow create: if isOwner(userId)
         && request.resource.data.role == "establishment"
@@ -46,14 +55,27 @@ service cloud.firestore {
       allow delete: if isAdmin();
 
       match /clients/{clientId} {
-        allow read, update, delete: if isOwner(userId) || isAdmin();
+        allow get: if isOwner(userId)
+          || isAdmin()
+          || establishmentIsActive(userId);
 
-        allow create, update: if isOwner(userId)
+        allow list: if isOwner(userId) || isAdmin();
+
+        allow create: if isOwner(userId)
           || isAdmin()
           || (
             establishmentIsActive(userId)
             && request.resource.data.phoneKey == clientId
           );
+
+        allow update: if isOwner(userId)
+          || isAdmin()
+          || (
+            establishmentIsActive(userId)
+            && request.resource.data.phoneKey == clientId
+          );
+
+        allow delete: if isOwner(userId) || isAdmin();
       }
 
       match /services/{serviceId} {

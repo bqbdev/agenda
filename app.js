@@ -20,12 +20,12 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
 
 const firebaseConfig = {
-  apiKey: "SUA_API_KEY",
-  authDomain: "SEU_PROJETO.firebaseapp.com",
-  projectId: "SEU_PROJETO",
-  storageBucket: "SEU_PROJETO.appspot.com",
-  messagingSenderId: "SEU_SENDER_ID",
-  appId: "SEU_APP_ID"
+  apiKey: "AIzaSyDLrhdAsAJYt68QKm6DDDRHCG2TT0eQXLQ",
+  authDomain: "bq-agenda.firebaseapp.com",
+  projectId: "bq-agenda",
+  storageBucket: "bq-agenda.firebasestorage.app",
+  messagingSenderId: "915157737983",
+  appId: "1:915157737983:web:cd5c5be43789a8afce87ca"
 };
 
 const app = initializeApp(firebaseConfig);

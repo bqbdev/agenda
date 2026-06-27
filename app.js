@@ -173,8 +173,12 @@ function lastDayOfCurrentYear() {
 function getDayIntervals(dayConfig) {
   if (!dayConfig || dayConfig.enabled !== true) return [];
   let intervals = [];
-  if (Array.isArray(dayConfig.intervals) && dayConfig.intervals.length) intervals = dayConfig.intervals;
-  else if (dayConfig.start && dayConfig.end) intervals = [{ start: dayConfig.start, end: dayConfig.end }];
+
+  if (Array.isArray(dayConfig.intervals) && dayConfig.intervals.length) {
+    intervals = dayConfig.intervals;
+  } else if (dayConfig.start && dayConfig.end) {
+    intervals = [{ start: dayConfig.start, end: dayConfig.end }];
+  }
 
   return intervals
     .map(item => ({ start: item.start, end: item.end }))
@@ -283,18 +287,69 @@ function planMonths(plan) {
   return 1;
 }
 
+function daysUntil(dateString) {
+  if (!dateString) return null;
+  const todayDate = new Date(today() + "T12:00:00");
+  const dueDate = new Date(dateString + "T12:00:00");
+  const diff = dueDate.getTime() - todayDate.getTime();
+  return Math.ceil(diff / (1000 * 60 * 60 * 24));
+}
+
+function billingGroup(user) {
+  if (user.blocked) return "blocked";
+  if (!user.billingDueDate) return "noDue";
+  const days = daysUntil(user.billingDueDate);
+  if (days < 0) return "overdue";
+  if (days <= 7) return "dueSoon";
+  return "ok";
+}
+
 function billingStatusLabel(user) {
   if (user.blocked) return "Bloqueado";
   if (!user.billingDueDate) return "Sem vencimento";
-  if (user.billingStatus === "paid" && user.billingDueDate >= today()) return "Em dia";
-  if (user.billingDueDate < today()) return "Vencido";
-  return "Pendente";
+  if (billingGroup(user) === "overdue") return "Vencido";
+  if (billingGroup(user) === "dueSoon") return "Próximo do vencimento";
+  return "Em dia";
+}
+
+function billingCardClass(user) {
+  const group = billingGroup(user);
+  if (group === "overdue") return "billing-overdue";
+  if (group === "dueSoon") return "billing-soon";
+  if (group === "blocked") return "billing-blocked";
+  if (group === "noDue") return "billing-no-due";
+  return "billing-ok";
+}
+
+function billingShortText(user) {
+  const group = billingGroup(user);
+  const days = daysUntil(user.billingDueDate);
+
+  if (group === "blocked") return "Bloqueado";
+  if (group === "noDue") return "Sem vencimento";
+  if (group === "overdue") return `Vencido há ${Math.abs(days)} dia(s)`;
+  if (group === "dueSoon") return `Vence em ${days} dia(s)`;
+  return "Em dia";
+}
+
+function nextDueDateByPlan(plan) {
+  return addMonthsToDate(today(), planMonths(plan));
 }
 
 function publicBookingLink(user) {
   const slug = user.slug || user.id;
   return `${location.origin}${location.pathname}#book/${slug}`;
 }
+
+window.previewPlanDueDate = id => {
+  const user = users.find(u => u.id === id);
+  const plan = $(`plan-${id}`)?.value || user?.plan || "monthly";
+  const nextDueDate = nextDueDateByPlan(plan);
+
+  if ($(`due-${id}`)) {
+    $(`due-${id}`).value = nextDueDate;
+  }
+};
 
 function renderAuth() {
   const mode = location.hash === "#register" ? "register" : "login";
@@ -787,6 +842,16 @@ function renderFinanceiro() {
   renderIcons();
 }
 
+function availabilityIntervalRow(key, start = "13:00", end = "18:00") {
+  return `
+    <div class="interval-row">
+      <input class="interval-start" type="time" value="${start}">
+      <input class="interval-end" type="time" value="${end}">
+      <button class="btn danger" type="button" onclick="window.removeAvailabilityInterval(this)">Remover</button>
+    </div>
+  `;
+}
+
 function renderDisponibilidade() {
   const availability = profile.availability || defaultAvailability();
 
@@ -807,7 +872,7 @@ function renderDisponibilidade() {
           const intervals = rawIntervals.length ? rawIntervals : [{ start: "09:00", end: "18:00" }];
 
           return `
-            <div class="availability-day">
+            <div class="availability-day" data-day="${key}">
               <strong>${label}</strong>
               <div class="grid-2">
                 <select id="${key}Enabled">
@@ -817,14 +882,8 @@ function renderDisponibilidade() {
                 <input id="${key}Slot" type="number" min="5" step="5" value="${day.slot || 30}" placeholder="Intervalo dos horários">
               </div>
 
-              <div id="${key}Intervals">
-                ${intervals.map((interval, index) => `
-                  <div class="interval-row">
-                    <input type="time" id="${key}Start${index}" value="${interval.start}">
-                    <input type="time" id="${key}End${index}" value="${interval.end}">
-                    <button class="btn danger" type="button" onclick="window.removeAvailabilityInterval('${key}', ${index})">Remover</button>
-                  </div>
-                `).join("")}
+              <div id="${key}Intervals" class="interval-list">
+                ${intervals.map(interval => availabilityIntervalRow(key, interval.start, interval.end)).join("")}
               </div>
 
               <button class="btn secondary full" type="button" onclick="window.addAvailabilityInterval('${key}')">Adicionar intervalo</button>
@@ -845,9 +904,9 @@ function renderDisponibilidade() {
       const rows = Array.from(document.querySelectorAll(`#${key}Intervals .interval-row`));
       const intervals = [];
 
-      rows.forEach((row, index) => {
-        const start = $(`${key}Start${index}`)?.value;
-        const end = $(`${key}End${index}`)?.value;
+      rows.forEach(row => {
+        const start = row.querySelector(".interval-start")?.value;
+        const end = row.querySelector(".interval-end")?.value;
 
         if (start && end && timeToMinutes(start) < timeToMinutes(end)) {
           intervals.push({ start, end });
@@ -872,29 +931,25 @@ function renderDisponibilidade() {
   renderIcons();
 }
 
-window.addAvailabilityInterval = async key => {
-  const availability = profile.availability || defaultAvailability();
-  const day = availability[key] || { enabled: true, slot: 30, intervals: [] };
-  const intervals = Array.isArray(day.intervals) && day.intervals.length ? [...day.intervals] : getDayIntervals(day);
-  intervals.push({ start: "13:00", end: "18:00" });
+window.addAvailabilityInterval = key => {
+  const container = $(`${key}Intervals`);
+  if (!container) return;
 
-  await updateDoc(doc(db, "users", currentUser.uid), {
-    [`availability.${key}.enabled`]: day.enabled ?? true,
-    [`availability.${key}.slot`]: day.slot || 30,
-    [`availability.${key}.intervals`]: intervals
-  });
+  container.insertAdjacentHTML("beforeend", availabilityIntervalRow(key, "13:00", "18:00"));
 };
 
-window.removeAvailabilityInterval = async (key, index) => {
-  const availability = profile.availability || defaultAvailability();
-  const day = availability[key] || {};
-  const intervals = Array.isArray(day.intervals) ? [...day.intervals] : getDayIntervals(day);
-  intervals.splice(index, 1);
-  if (!intervals.length) intervals.push({ start: "09:00", end: "18:00" });
+window.removeAvailabilityInterval = button => {
+  const row = button.closest(".interval-row");
+  const list = button.closest(".interval-list");
+  if (!row || !list) return;
 
-  await updateDoc(doc(db, "users", currentUser.uid), {
-    [`availability.${key}.intervals`]: intervals
-  });
+  if (list.querySelectorAll(".interval-row").length <= 1) {
+    row.querySelector(".interval-start").value = "09:00";
+    row.querySelector(".interval-end").value = "18:00";
+    return;
+  }
+
+  row.remove();
 };
 
 function renderOnline() {
@@ -983,6 +1038,24 @@ async function loadAdminBusinessData(userId) {
     services: serviceSnap.docs.map(d => ({ id: d.id, ...d.data() })),
     transactions: transactionSnap.docs.map(d => ({ id: d.id, ...d.data() }))
   };
+}
+
+function adminBillingMiniCard(user) {
+  return `
+    <article class="billing-mini-card ${billingCardClass(user)}">
+      <div>
+        <strong>${user.businessName || user.email}</strong>
+        <span>${user.ownerName || "Sem responsável"}</span>
+        <small>${plans[user.plan] || user.plan || "Sem plano"} • ${user.billingDueDate ? formatDateBR(user.billingDueDate) : "Sem vencimento"} • ${billingShortText(user)}</small>
+      </div>
+
+      <div class="billing-mini-actions">
+        <button class="icon-btn" onclick="window.openAdminDetails('${user.id}')" title="Ver dados">${icon("eye")}</button>
+        <button class="icon-btn" onclick="window.sendBillingReminder('${user.id}')" title="Enviar cobrança">${icon("message-circle")}</button>
+        <button class="icon-btn" onclick="window.markBusinessPaid('${user.id}')" title="Marcar pago">${icon("check-circle")}</button>
+      </div>
+    </article>
+  `;
 }
 
 function adminBusinessDetails(user) {
@@ -1074,10 +1147,15 @@ function adminBusinessDetails(user) {
 
 function renderAdmin() {
   const establishments = users.filter(u => u.role !== "admin");
+
   const active = establishments.filter(u => u.status === "active" && !u.blocked).length;
   const pending = establishments.filter(u => u.status === "pending").length;
   const blocked = establishments.filter(u => u.blocked).length;
-  const overdue = establishments.filter(u => u.billingDueDate && u.billingDueDate < today() && u.billingStatus !== "paid").length;
+  const overdueList = establishments.filter(u => billingGroup(u) === "overdue");
+  const dueSoonList = establishments.filter(u => billingGroup(u) === "dueSoon");
+  const noDueList = establishments.filter(u => billingGroup(u) === "noDue");
+  const okList = establishments.filter(u => billingGroup(u) === "ok");
+
   const estimatedRevenue = establishments
     .filter(u => u.status === "active" && !u.blocked)
     .reduce((sum, u) => sum + Number(u.planPrice || planPrices[u.plan] || 0), 0);
@@ -1086,31 +1164,38 @@ function renderAdmin() {
 
   $("view").innerHTML = `
     <header class="page-head">
-      <div><h1>Painel administrativo</h1><p>Controle estabelecimentos, planos, cobranças, clientes e uso da plataforma.</p></div>
+      <div><h1>Painel administrativo</h1><p>Controle cobranças, vencimentos, planos, clientes e uso da plataforma.</p></div>
     </header>
 
     <section class="metrics">
+      <div class="metric danger-metric"><span>Vencidos</span><strong>${overdueList.length}</strong></div>
+      <div class="metric warning-metric"><span>Vencem em 7 dias</span><strong>${dueSoonList.length}</strong></div>
       <div class="metric"><span>Ativos</span><strong>${active}</strong></div>
       <div class="metric"><span>Pendentes</span><strong>${pending}</strong></div>
       <div class="metric"><span>Bloqueados</span><strong>${blocked}</strong></div>
-      <div class="metric"><span>Vencidos</span><strong>${overdue}</strong></div>
       <div class="metric"><span>Receita prevista</span><strong>${money(estimatedRevenue)}</strong></div>
-      <div class="metric"><span>Total</span><strong>${establishments.length}</strong></div>
+    </section>
+
+    <section class="admin-billing-board">
+      <div class="billing-column"><h2>Vencidos</h2>${overdueList.map(adminBillingMiniCard).join("") || empty("Nenhum vencido", "Tudo certo por aqui.")}</div>
+      <div class="billing-column"><h2>Próximos vencimentos</h2>${dueSoonList.map(adminBillingMiniCard).join("") || empty("Sem alertas", "Nenhum plano vencendo nos próximos 7 dias.")}</div>
+      <div class="billing-column"><h2>Sem vencimento</h2>${noDueList.map(adminBillingMiniCard).join("") || empty("Tudo configurado", "Todos possuem data de vencimento.")}</div>
+      <div class="billing-column"><h2>Em dia</h2>${okList.slice(0, 8).map(adminBillingMiniCard).join("") || empty("Sem dados", "Clientes em dia aparecerão aqui.")}</div>
     </section>
 
     <section class="panel">
-      <h2>Estabelecimentos</h2>
+      <h2>Todos os estabelecimentos</h2>
       <div class="list">
         ${
           establishments.map(u => `
-            <article class="item admin-item ${adminSelectedUserId === u.id ? "selected" : ""}">
+            <article class="item admin-item ${adminSelectedUserId === u.id ? "selected" : ""} ${billingCardClass(u)}">
               <div>
                 <strong>${u.businessName || u.email}</strong>
-                <span>${u.ownerName || "Sem responsável"} • ${u.city || "Sem cidade"} • ${plans[u.plan] || u.plan || "Sem plano"} • ${billingStatusLabel(u)}</span>
+                <span>${u.ownerName || "Sem responsável"} • ${u.city || "Sem cidade"} • ${plans[u.plan] || u.plan || "Sem plano"} • ${u.billingDueDate ? formatDateBR(u.billingDueDate) : "Sem vencimento"} • ${billingShortText(u)}</span>
               </div>
 
               <div class="admin-actions">
-                <select id="plan-${u.id}">
+                <select id="plan-${u.id}" onchange="window.previewPlanDueDate('${u.id}')">
                   ${Object.entries(plans).map(([value, label]) => `<option value="${value}" ${u.plan === value ? "selected" : ""}>${label}</option>`).join("")}
                 </select>
 
@@ -1142,14 +1227,19 @@ window.openAdminDetails = async id => {
 
 window.approveUser = async id => {
   const selected = users.find(u => u.id === id);
-  const dueInput = $(`due-${id}`)?.value || selected?.billingDueDate || addMonthsToDate(today(), planMonths(selected?.plan));
+  const plan = $(`plan-${id}`)?.value || selected?.plan || "monthly";
+  const dueInput = $(`due-${id}`)?.value || nextDueDateByPlan(plan);
 
   await updateDoc(doc(db, "users", id), {
     status: "active",
     blocked: false,
-    billingStatus: "paid",
+    plan,
+    planLabel: plans[plan],
+    planPrice: planPrices[plan] || 0,
+    billingStatus: dueInput < today() ? "pending" : "paid",
     billingDueDate: dueInput,
-    lastPaymentDate: today()
+    lastPaymentDate: today(),
+    updatedAt: serverTimestamp()
   });
 
   if (selected?.slug) {
@@ -1165,27 +1255,30 @@ window.approveUser = async id => {
       blocked: false
     }, { merge: true });
   }
+
+  alert(`Estabelecimento aprovado. Vencimento: ${formatDateBR(dueInput)}`);
 };
 
 window.savePlan = async id => {
   const selected = users.find(u => u.id === id);
   const plan = $(`plan-${id}`)?.value || selected?.plan || "monthly";
-  const dueDate = $(`due-${id}`)?.value || selected?.billingDueDate || "";
+  const nextDueDate = $(`due-${id}`)?.value || nextDueDateByPlan(plan);
 
   await updateDoc(doc(db, "users", id), {
     plan,
     planLabel: plans[plan],
     planPrice: planPrices[plan] || 0,
-    billingDueDate: dueDate,
+    billingDueDate: nextDueDate,
+    billingStatus: nextDueDate < today() ? "pending" : "paid",
     updatedAt: serverTimestamp()
   });
 
-  alert("Plano e cobrança salvos.");
+  alert(`Plano salvo. Novo vencimento: ${formatDateBR(nextDueDate)}`);
 };
 
 window.markBusinessPaid = async id => {
   const selected = users.find(u => u.id === id);
-  const nextDueDate = addMonthsToDate(today(), planMonths(selected?.plan));
+  const nextDueDate = nextDueDateByPlan(selected?.plan || "monthly");
 
   await updateDoc(doc(db, "users", id), {
     billingStatus: "paid",

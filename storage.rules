@@ -6,11 +6,6 @@ service firebase.storage {
       return request.auth != null;
     }
 
-    function isAdmin() {
-      return signedIn()
-        && firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == "admin";
-    }
-
     function validImage() {
       return request.resource.size < 5 * 1024 * 1024
         && request.resource.contentType.matches("image/.*");
@@ -18,7 +13,9 @@ service firebase.storage {
 
     match /profileImages/{userId}/{fileName} {
       allow read: if true;
-      allow write: if (signedIn() && request.auth.uid == userId && validImage()) || isAdmin();
+      allow write: if signedIn()
+        && request.auth.uid == userId
+        && validImage();
     }
   }
 }

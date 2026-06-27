@@ -1,7 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-app.js";
 import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-auth.js";
 import { getFirestore, doc, collection, collectionGroup, getDoc, getDocs, setDoc, addDoc, deleteDoc, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
-import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-storage.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDLrhdAsAJYt68QKm6DDDRHCG2TT0eQXLQ",
@@ -15,7 +14,6 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
-const storage = getStorage(app);
 const root = document.querySelector("#root");
 
 let user = null, profile = null, tab = "dashboard";
@@ -43,6 +41,56 @@ function makeSlug(text) {
   return String(text || "")
     .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
     .toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+}
+
+function fileToCompressedDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    if (!file.type.startsWith("image/")) {
+      reject(new Error("Envie apenas arquivos de imagem."));
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      reject(new Error("A imagem deve ter no maximo 5MB."));
+      return;
+    }
+
+    const reader = new FileReader();
+
+    reader.onload = () => {
+      const img = new Image();
+
+      img.onload = () => {
+        const maxSize = 900;
+        let { width, height } = img;
+
+        if (width > height && width > maxSize) {
+          height = Math.round((height * maxSize) / width);
+          width = maxSize;
+        }
+
+        if (height >= width && height > maxSize) {
+          width = Math.round((width * maxSize) / height);
+          height = maxSize;
+        }
+
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, width, height);
+
+        resolve(canvas.toDataURL("image/jpeg", 0.78));
+      };
+
+      img.onerror = () => reject(new Error("Nao foi possivel ler a imagem."));
+      img.src = reader.result;
+    };
+
+    reader.onerror = () => reject(new Error("Nao foi possivel carregar o arquivo."));
+    reader.readAsDataURL(file);
+  });
 }
 
 function planExpiration(plan) {
@@ -459,12 +507,7 @@ function renderOnline() {
       const file = form.photo.files[0];
 
       if (file) {
-        if (!file.type.startsWith("image/")) return alert("Envie apenas arquivos de imagem.");
-        if (file.size > 5 * 1024 * 1024) return alert("A imagem deve ter no maximo 5MB.");
-        const safeName = file.name.replace(/[^a-z0-9.]/gi, "-").toLowerCase();
-        const imageRef = ref(storage, `profileImages/${user.uid}/${Date.now()}-${safeName}`);
-        await uploadBytes(imageRef, file);
-        photoURL = await getDownloadURL(imageRef);
+        photoURL = await fileToCompressedDataUrl(file);
       }
 
       const nextSlug = makeSlug(data.businessName || profile.businessName || user.uid);
@@ -474,8 +517,25 @@ function renderOnline() {
         return;
       }
 
-      await setDoc(userRef(user.uid), { businessName: data.businessName, phone: onlyDigits(data.phone), publicBooking: data.publicBooking === "true", photoURL, slug: nextSlug, updatedAt: serverTimestamp() }, { merge: true });
-      await setDoc(doc(db, "publicEstablishments", nextSlug), { uid: user.uid, businessName: data.businessName, segment: profile.segment || "", city: profile.city || "", photoURL, publicBooking: data.publicBooking === "true", updatedAt: serverTimestamp() }, { merge: true });
+      await setDoc(userRef(user.uid), {
+        businessName: data.businessName,
+        phone: onlyDigits(data.phone),
+        publicBooking: data.publicBooking === "true",
+        photoURL,
+        slug: nextSlug,
+        updatedAt: serverTimestamp()
+      }, { merge: true });
+
+      await setDoc(doc(db, "publicEstablishments", nextSlug), {
+        uid: user.uid,
+        businessName: data.businessName,
+        segment: profile.segment || "",
+        city: profile.city || "",
+        photoURL,
+        publicBooking: data.publicBooking === "true",
+        updatedAt: serverTimestamp()
+      }, { merge: true });
+
       alert("Perfil salvo com sucesso.");
     } catch (error) {
       alert("Erro ao salvar perfil: " + error.message);

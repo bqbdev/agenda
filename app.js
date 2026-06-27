@@ -16,13 +16,40 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 const root = document.querySelector("#root");
 
-let user = null, profile = null, tab = "dashboard";
-let users = [], clients = [], services = [], appointments = [], transactions = [];
-let adminAppointments = [], adminTransactions = [];
+let user = null;
+let profile = null;
+let tab = "dashboard";
+let users = [];
+let clients = [];
+let services = [];
+let appointments = [];
+let transactions = [];
+let adminAppointments = [];
+let adminTransactions = [];
 
-const plans = { monthly: "Mensal", quarterly: "Trimestral", semiannual: "Semestral", annual: "Anual" };
-const planPrices = { monthly: 49.9, quarterly: 129.9, semiannual: 239.9, annual: 399.9 };
-const paymentMethods = { pix: "Pix", cash: "Dinheiro", credit: "Cartao de credito", debit: "Cartao de debito", transfer: "Transferencia", other: "Outro" };
+const plans = {
+  monthly: "Mensal",
+  quarterly: "Trimestral",
+  semiannual: "Semestral",
+  annual: "Anual"
+};
+
+const planPrices = {
+  monthly: 49.9,
+  quarterly: 129.9,
+  semiannual: 239.9,
+  annual: 399.9
+};
+
+const paymentMethods = {
+  pix: "Pix",
+  cash: "Dinheiro",
+  credit: "Cartao de credito",
+  debit: "Cartao de debito",
+  transfer: "Transferencia",
+  other: "Outro"
+};
+
 const weekKeys = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
 
 const $ = id => document.getElementById(id);
@@ -39,8 +66,18 @@ const empty = text => `<div class="empty">${text}</div>`;
 
 function makeSlug(text) {
   return String(text || "")
-    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+function formatDateBR(dateString) {
+  if (!dateString || !dateString.includes("-")) return dateString || "";
+  const [year, month, day] = dateString.split("-");
+  return `${day}/${month}/${year}`;
 }
 
 function whatsappUrl(phone, text) {
@@ -51,12 +88,21 @@ function whatsappUrl(phone, text) {
 
 function fileToCompressedDataUrl(file) {
   return new Promise((resolve, reject) => {
-    if (!file.type.startsWith("image/")) return reject(new Error("Envie apenas arquivos de imagem."));
-    if (file.size > 5 * 1024 * 1024) return reject(new Error("A imagem deve ter no maximo 5MB."));
+    if (!file.type.startsWith("image/")) {
+      reject(new Error("Envie apenas arquivos de imagem."));
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      reject(new Error("A imagem deve ter no maximo 5MB."));
+      return;
+    }
 
     const reader = new FileReader();
+
     reader.onload = () => {
       const img = new Image();
+
       img.onload = () => {
         const maxSize = 900;
         let { width, height } = img;
@@ -74,12 +120,17 @@ function fileToCompressedDataUrl(file) {
         const canvas = document.createElement("canvas");
         canvas.width = width;
         canvas.height = height;
-        canvas.getContext("2d").drawImage(img, 0, 0, width, height);
+
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, width, height);
+
         resolve(canvas.toDataURL("image/jpeg", 0.78));
       };
+
       img.onerror = () => reject(new Error("Nao foi possivel ler a imagem."));
       img.src = reader.result;
     };
+
     reader.onerror = () => reject(new Error("Nao foi possivel carregar o arquivo."));
     reader.readAsDataURL(file);
   });
@@ -94,57 +145,114 @@ function planExpiration(plan) {
   return d.toISOString().slice(0, 10);
 }
 
-function isExpired(date) { return Boolean(date && date < today()); }
-function timeToMinutes(time) { const [h, m] = String(time || "00:00").split(":").map(Number); return h * 60 + m; }
-function minutesToTime(minutes) { return `${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`; }
-function dateToWeekKey(dateString) { const [y, m, d] = dateString.split("-").map(Number); return weekKeys[new Date(y, m - 1, d).getDay()]; }
-function lastDayOfCurrentMonth() { const now = new Date(); return new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().slice(0, 10); }
-function lastDayOfCurrentYear() { return `${new Date().getFullYear()}-12-31`; }
-function overlaps(aStart, aEnd, bStart, bEnd) { return aStart < bEnd && bStart < aEnd; }
+function isExpired(date) {
+  return Boolean(date && date < today());
+}
+
+function timeToMinutes(time) {
+  const [h, m] = String(time || "00:00").split(":").map(Number);
+  return h * 60 + m;
+}
+
+function minutesToTime(minutes) {
+  return `${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`;
+}
+
+function dateToWeekKey(dateString) {
+  const [y, m, d] = dateString.split("-").map(Number);
+  return weekKeys[new Date(y, m - 1, d).getDay()];
+}
+
+function lastDayOfCurrentMonth() {
+  const now = new Date();
+  return new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().slice(0, 10);
+}
+
+function lastDayOfCurrentYear() {
+  return `${new Date().getFullYear()}-12-31`;
+}
+
+function overlaps(aStart, aEnd, bStart, bEnd) {
+  return aStart < bEnd && bStart < aEnd;
+}
 
 function getDayIntervals(dayConfig) {
-  if (!dayConfig || !dayConfig.enabled) return [];
+  if (!dayConfig || dayConfig.enabled !== true) return [];
+
+  let intervals = [];
 
   if (Array.isArray(dayConfig.intervals) && dayConfig.intervals.length) {
-    return dayConfig.intervals.filter(interval => interval.start && interval.end && interval.start < interval.end);
+    intervals = dayConfig.intervals;
+  } else if (dayConfig.start && dayConfig.end) {
+    intervals = [{ start: dayConfig.start, end: dayConfig.end }];
   }
 
-  if (dayConfig.start && dayConfig.end && dayConfig.start < dayConfig.end) {
-    return [{ start: dayConfig.start, end: dayConfig.end }];
-  }
+  return intervals
+    .map(interval => ({
+      start: interval.start,
+      end: interval.end
+    }))
+    .filter(interval => {
+      if (!interval.start || !interval.end) return false;
+      return timeToMinutes(interval.start) < timeToMinutes(interval.end);
+    })
+    .sort((a, b) => timeToMinutes(a.start) - timeToMinutes(b.start));
+}
 
-  return [];
+function getAppointmentBusyRange(appointment) {
+  const start = Number.isFinite(Number(appointment.startMinutes))
+    ? Number(appointment.startMinutes)
+    : timeToMinutes(appointment.time);
+
+  const duration = Number(appointment.duration || appointment.serviceDuration || 30);
+
+  const end = Number.isFinite(Number(appointment.endMinutes)) && Number(appointment.endMinutes) > start
+    ? Number(appointment.endMinutes)
+    : start + duration;
+
+  return { start, end };
 }
 
 function getAvailableSlots({ date, service, availability, appointments, bookingWindow }) {
   if (!date || !service) return [];
   if (date < today()) return [];
+
   if ((bookingWindow || "month") === "month" && date > lastDayOfCurrentMonth()) return [];
   if (bookingWindow === "year" && date > lastDayOfCurrentYear()) return [];
 
-  const dayConfig = availability?.[dateToWeekKey(date)];
+  const weekKey = dateToWeekKey(date);
+  const dayConfig = availability?.[weekKey];
   const intervals = getDayIntervals(dayConfig);
+
   if (!intervals.length) return [];
 
   const slot = Number(dayConfig.slot || 30);
   const duration = Number(service.duration || 30);
 
   const busy = appointments
-    .filter(a => a.date === date && a.status !== "canceled")
-    .map(a => ({
-      start: Number(a.startMinutes ?? timeToMinutes(a.time)),
-      end: Number(a.endMinutes ?? (timeToMinutes(a.time) + Number(a.duration || 30)))
-    }));
+    .filter(a => a.date === date)
+    .filter(a => a.status !== "canceled")
+    .map(getAppointmentBusyRange)
+    .filter(range =>
+      Number.isFinite(range.start) &&
+      Number.isFinite(range.end) &&
+      range.end > range.start
+    );
 
   const result = new Set();
 
   intervals.forEach(interval => {
-    const start = timeToMinutes(interval.start);
-    const end = timeToMinutes(interval.end);
+    const intervalStart = timeToMinutes(interval.start);
+    const intervalEnd = timeToMinutes(interval.end);
 
-    for (let current = start; current + duration <= end; current += slot) {
+    for (let current = intervalStart; current + duration <= intervalEnd; current += slot) {
       const currentEnd = current + duration;
-      if (!busy.some(b => overlaps(current, currentEnd, b.start, b.end))) {
+
+      const hasConflict = busy.some(busyRange =>
+        overlaps(current, currentEnd, busyRange.start, busyRange.end)
+      );
+
+      if (!hasConflict) {
         result.add(minutesToTime(current));
       }
     }
@@ -169,7 +277,6 @@ function renderAuth() {
         </div>
         <small>100% web, pronto para GitHub Pages e Firebase.</small>
       </div>
-
       <div class="auth-panel-wrap">
         <div class="auth-box">
           <h2>Acessar plataforma</h2>
@@ -341,7 +448,6 @@ function renderShell() {
           <strong>BQ Agenda</strong>
           <span>${isAdmin ? "Painel administrativo" : profile.businessName || "Estabelecimento"}</span>
         </div>
-
         <nav class="nav">
           ${isAdmin ? nav("admin", "chart-no-axes-combined", "BI") : `
             ${nav("dashboard", "layout-dashboard", "Resumo")}
@@ -354,7 +460,6 @@ function renderShell() {
           `}
         </nav>
       </aside>
-
       <section class="content">
         <header class="topbar">
           <div>
@@ -363,7 +468,6 @@ function renderShell() {
           </div>
           <button class="btn secondary" id="logoutBtn"><i data-lucide="log-out"></i>Sair</button>
         </header>
-
         <div id="view"></div>
       </section>
     </section>
@@ -408,7 +512,6 @@ function renderDashboard() {
       <div class="card"><small>Clientes</small><strong>${clients.length}</strong></div>
       <div class="card"><small>Agendamentos</small><strong>${appointments.length}</strong></div>
     </div>
-
     <div class="panel" style="margin-top:16px">
       <h3>Proximos agendamentos</h3>
       <div class="list">${appointments.slice(0, 8).map(appointmentItem).join("") || empty("Nenhum agendamento.")}</div>
@@ -423,31 +526,25 @@ function renderAgenda() {
         <h3>Novo agendamento</h3>
         <input name="clientName" placeholder="Nome do cliente" required>
         <input name="clientPhone" placeholder="WhatsApp do cliente" required>
-
         <select name="serviceId" required>
           <option value="">Servico</option>
           ${services.map(s => `<option value="${s.id}">${s.name} - ${money(s.price)} - ${s.duration} min</option>`).join("")}
         </select>
-
         <div class="row">
           <input name="date" type="date" value="${today()}" required>
           <input name="time" type="time" required>
         </div>
-
         <select name="paymentMethod">
           ${Object.entries(paymentMethods).map(([k, v]) => `<option value="${k}">${v}</option>`).join("")}
         </select>
-
         <select name="paymentStatus">
           <option value="pending">Pagamento pendente</option>
           <option value="paid">Pago</option>
           <option value="canceled">Cancelado</option>
         </select>
-
         <textarea name="notes" placeholder="Observacoes"></textarea>
         <button class="btn" type="submit">Salvar agendamento</button>
       </form>
-
       <div class="panel">
         <h3>Agenda</h3>
         <div class="list">${appointments.map(appointmentItem).join("") || empty("Nenhum agendamento.")}</div>
@@ -517,7 +614,7 @@ async function saveAppointment(event) {
 
 function appointmentItem(a) {
   const phone = onlyDigits(a.clientPhone);
-  const msg = encodeURIComponent(`Ola ${a.clientName}, seu horario em ${a.date} as ${a.time} esta registrado.`);
+  const msg = encodeURIComponent(`Ola ${a.clientName}, seu horario em ${formatDateBR(a.date)} as ${a.time} esta registrado.`);
 
   return `
     <article class="item">
@@ -525,7 +622,7 @@ function appointmentItem(a) {
         <strong>${a.clientName}</strong>
         <span class="badge ${a.paymentStatus === "paid" ? "paid" : "pending"}">${a.paymentStatus === "paid" ? "Pago" : "Pendente"}</span>
       </div>
-      <span>${a.date || ""} as ${a.time || ""} - ${a.serviceName || "Servico"} (${a.duration || 30} min)</span>
+      <span>${formatDateBR(a.date) || ""} as ${a.time || ""} - ${a.serviceName || "Servico"} (${a.duration || 30} min)</span>
       <span>${money(a.price)} - ${paymentMethods[a.paymentMethod] || "Sem forma"}</span>
       <div class="actions">
         ${phone ? `<a class="btn secondary" target="_blank" href="https://wa.me/55${phone}?text=${msg}">WhatsApp</a>` : ""}
@@ -554,7 +651,6 @@ function renderClientes() {
         <textarea name="notes" placeholder="Observacoes"></textarea>
         <button class="btn" type="submit">Salvar cliente</button>
       </form>
-
       <div class="panel">
         <h3>Base de clientes</h3>
         <div class="list">${clients.map(clientItem).join("") || empty("Nenhum cliente.")}</div>
@@ -606,16 +702,13 @@ function renderServicos() {
       <form id="serviceForm" class="panel form">
         <h3>Novo servico</h3>
         <input name="name" placeholder="Nome do servico" required>
-
         <div class="row">
           <input name="price" type="number" min="0" step="0.01" placeholder="Preco" required>
           <input name="duration" type="number" min="5" step="5" placeholder="Duracao em minutos" required>
         </div>
-
         <textarea name="description" placeholder="Descricao"></textarea>
         <button class="btn" type="submit">Salvar servico</button>
       </form>
-
       <div class="panel">
         <h3>Servicos</h3>
         <div class="list">${services.map(serviceItem).join("") || empty("Nenhum servico.")}</div>
@@ -680,7 +773,6 @@ function renderFinanceiro() {
       <div class="card"><small>Despesas</small><strong class="danger-text">${money(expenses)}</strong></div>
       <div class="card"><small>Saldo</small><strong>${money(totalPaid - expenses)}</strong></div>
     </div>
-
     <div class="grid two" style="margin-top:16px">
       <form id="expenseForm" class="panel form">
         <h3>Nova despesa</h3>
@@ -691,7 +783,6 @@ function renderFinanceiro() {
         </div>
         <button class="btn" type="submit">Salvar despesa</button>
       </form>
-
       <div class="panel">
         <h3>Ganhos por pagamento</h3>
         <div class="list">${byMethod}</div>
@@ -743,12 +834,10 @@ function renderDisponibilidade() {
   view.innerHTML = `
     <form id="availabilityForm" class="panel form">
       <h3>Horarios disponiveis</h3>
-
       <select name="bookingWindow">
         <option value="month" ${bookingWindow === "month" ? "selected" : ""}>Liberar agenda mes a mes</option>
         <option value="year" ${bookingWindow === "year" ? "selected" : ""}>Liberar agenda para o ano todo</option>
       </select>
-
       ${days.map(([key, label]) => {
         const item = availability[key] || {};
         const intervals = getDayIntervals(item).length
@@ -758,27 +847,22 @@ function renderDisponibilidade() {
         return `
           <div class="item availability-day" data-day="${key}">
             <strong>${label}</strong>
-
             <div class="row">
               <select class="day-enabled">
                 <option value="false" ${!item.enabled ? "selected" : ""}>Indisponivel</option>
                 <option value="true" ${item.enabled ? "selected" : ""}>Disponivel</option>
               </select>
-
               <input class="day-slot" type="number" min="10" step="5" value="${item.slot || 30}" placeholder="Intervalo em minutos">
             </div>
-
             <div class="intervals">
               ${intervalRows(intervals)}
             </div>
-
             <button class="btn secondary" type="button" onclick="window.addAvailabilityInterval('${key}')">
               Adicionar intervalo
             </button>
           </div>
         `;
       }).join("")}
-
       <button class="btn" type="submit">Salvar disponibilidade</button>
     </form>
   `;
@@ -823,7 +907,7 @@ function renderDisponibilidade() {
           start: row.querySelector(".interval-start").value,
           end: row.querySelector(".interval-end").value
         }))
-        .filter(interval => interval.start && interval.end && interval.start < interval.end);
+        .filter(interval => interval.start && interval.end && timeToMinutes(interval.start) < timeToMinutes(interval.end));
 
       nextAvailability[key] = {
         enabled,
@@ -855,23 +939,18 @@ function renderOnline() {
       <form id="settingsForm" class="panel form">
         <h3>Perfil publico</h3>
         ${cover}
-
         <label>
           Imagem do estabelecimento
           <input name="photo" type="file" accept="image/*">
         </label>
-
         <input name="businessName" value="${profile.businessName || ""}" placeholder="Nome do estabelecimento">
         <input name="phone" value="${profile.phone || ""}" placeholder="WhatsApp">
-
         <select name="publicBooking">
           <option value="true" ${profile.publicBooking !== false ? "selected" : ""}>Agendamento ativo</option>
           <option value="false" ${profile.publicBooking === false ? "selected" : ""}>Agendamento pausado</option>
         </select>
-
         <button class="btn" type="submit">Salvar perfil</button>
       </form>
-
       <div class="panel">
         <h3>Link publico</h3>
         <input value="${link}" readonly>
@@ -980,27 +1059,23 @@ function renderAdmin() {
       <div class="card"><small>Bloqueados</small><strong>${blocked}</strong></div>
       <div class="card"><small>Vencidos</small><strong>${expired}</strong></div>
     </div>
-
     <div class="grid cards" style="margin-top:16px">
       <div class="card"><small>Agendamentos hoje</small><strong>${appointmentsToday}</strong></div>
       <div class="card"><small>Agendamentos no mes</small><strong>${appointmentsMonth}</strong></div>
       <div class="card"><small>Movimentado no mes</small><strong>${money(paidMonth)}</strong></div>
       <div class="card"><small>Pendente nos estabelecimentos</small><strong>${money(pendingMoney)}</strong></div>
     </div>
-
     <div class="grid cards" style="margin-top:16px">
       <div class="card"><small>Receita BQ estimada</small><strong>${money(bqMonthlyRevenue)}</strong></div>
       <div class="card"><small>Mensais</small><strong>${planCount.monthly}</strong></div>
       <div class="card"><small>Trimestrais</small><strong>${planCount.quarterly}</strong></div>
       <div class="card"><small>Anuais</small><strong>${planCount.annual}</strong></div>
     </div>
-
     <div class="grid two" style="margin-top:16px">
       <div class="panel">
         <h3>Ranking de uso</h3>
         <div class="list">${ranking.map(adminRankingItem).join("") || empty("Nenhum dado ainda.")}</div>
       </div>
-
       <div class="panel">
         <h3>Pendencias</h3>
         <div class="list">
@@ -1011,7 +1086,6 @@ function renderAdmin() {
         </div>
       </div>
     </div>
-
     <div class="panel" style="margin-top:16px">
       <h3>Estabelecimentos</h3>
       <div class="list">${establishments.map(adminUserItem).join("") || empty("Nenhum estabelecimento cadastrado.")}</div>
@@ -1059,10 +1133,8 @@ function adminUserItem(u) {
         <strong>${u.businessName || "Sem nome"}</strong>
         <span class="badge ${u.blocked ? "blocked" : u.status}">${u.blocked ? "Bloqueado" : u.status}</span>
       </div>
-
       <span>${u.ownerName || ""} - ${u.email || ""} - ${u.phone || ""}</span>
       <span>Plano: ${plans[u.plan] || "-"} - Pagamento: ${u.paymentStatus || "-"} - Vence: ${u.planExpiresAt || "-"}</span>
-
       <div class="actions">
         <select id="plan-${u.id}">
           ${Object.entries(plans).map(([k, v]) => `<option value="${k}" ${u.plan === k ? "selected" : ""}>${v}</option>`).join("")}
@@ -1140,14 +1212,11 @@ async function renderPublicBooking(uid) {
           <p>${publicProfile.segment || "Agendamento online"} · ${publicProfile.city || ""}</p>
         </div>
       </header>
-
       <div class="public-content">
         <form id="publicForm" class="panel form">
           <h3>Solicitar horario</h3>
-
           <input id="publicClientPhone" name="clientPhone" placeholder="Seu WhatsApp" required>
           <input id="publicClientName" name="clientName" placeholder="Seu nome" required>
-
           <select id="publicService" name="serviceId" required>
             <option value="">Escolha um servico</option>
             ${publicServices.map(s => `
@@ -1156,7 +1225,6 @@ async function renderPublicBooking(uid) {
               </option>
             `).join("")}
           </select>
-
           <div class="row">
             <input
               id="publicDate"
@@ -1166,18 +1234,14 @@ async function renderPublicBooking(uid) {
               max="${publicProfile.bookingWindow === "year" ? lastDayOfCurrentYear() : lastDayOfCurrentMonth()}"
               required
             >
-
             <select id="publicTime" name="time" required>
               <option value="">Escolha servico e data</option>
             </select>
           </div>
-
           <select name="paymentMethod">
             ${Object.entries(paymentMethods).map(([k, v]) => `<option value="${k}">${v}</option>`).join("")}
           </select>
-
           <textarea name="notes" placeholder="Observacoes"></textarea>
-
           <button class="btn" type="submit">
             <i data-lucide="calendar-plus"></i>
             Solicitar agendamento
@@ -1314,7 +1378,7 @@ async function renderPublicBooking(uid) {
       `Cliente: ${data.clientName}`,
       `WhatsApp: ${phoneKey}`,
       `Servico: ${service?.name || ""}`,
-      `Data: ${data.date}`,
+      `Data: ${formatDateBR(data.date)}`,
       `Horario: ${data.time}`,
       `Duracao: ${Number(service?.duration || 30)} minutos`,
       `Valor: ${money(service?.price || 0)}`,
@@ -1330,7 +1394,6 @@ async function renderPublicBooking(uid) {
       <div class="empty">
         <h2>Solicitacao enviada</h2>
         <p>Agora envie a confirmacao pelo WhatsApp para o estabelecimento.</p>
-
         ${
           waLink
             ? `<a class="btn" target="_blank" href="${waLink}">Enviar confirmacao no WhatsApp</a>`

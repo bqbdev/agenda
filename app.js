@@ -1,6 +1,26 @@
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-app.js";
-import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-auth.js";
-import { getFirestore, doc, collection, collectionGroup, getDoc, getDocs, setDoc, addDoc, deleteDoc, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
+import {
+  getAuth,
+  onAuthStateChanged,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  signOut
+} from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
+import {
+  getFirestore,
+  doc,
+  getDoc,
+  setDoc,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  collection,
+  getDocs,
+  onSnapshot,
+  query,
+  orderBy,
+  serverTimestamp
+} from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDLrhdAsAJYt68QKm6DDDRHCG2TT0eQXLQ",
@@ -14,64 +34,62 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
-const root = document.querySelector("#root");
 
-let user = null;
+const root = document.getElementById("root");
+const bqWhatsapp = "5511996785799";
+
+let currentUser = null;
 let profile = null;
-let tab = "dashboard";
+let activeTab = "dashboard";
+let unsubscribers = [];
+
 let users = [];
 let clients = [];
 let services = [];
 let appointments = [];
 let transactions = [];
-let adminAppointments = [];
-let adminTransactions = [];
 
 const plans = {
-  monthly: "Mensal",
-  quarterly: "Trimestral",
-  semiannual: "Semestral",
-  annual: "Anual"
+  monthly: "Plano mensal",
+  quarterly: "Plano trimestral",
+  semiannual: "Plano semestral",
+  annual: "Plano anual"
 };
 
 const planPrices = {
-  monthly: 49.9,
-  quarterly: 129.9,
-  semiannual: 239.9,
-  annual: 399.9
+  monthly: 29.99,
+  quarterly: 59.99,
+  semiannual: 0,
+  annual: 0
 };
 
-const paymentMethods = {
-  pix: "Pix",
-  cash: "Dinheiro",
-  credit: "Cartao de credito",
-  debit: "Cartao de debito",
-  transfer: "Transferencia",
-  other: "Outro"
-};
+const paymentMethods = ["Pix", "Dinheiro", "Cartao de credito", "Cartao de debito", "Transferencia"];
 
-const weekKeys = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
+const weekKeys = [
+  ["mon", "Segunda"],
+  ["tue", "Terca"],
+  ["wed", "Quarta"],
+  ["thu", "Quinta"],
+  ["fri", "Sexta"],
+  ["sat", "Sabado"],
+  ["sun", "Domingo"]
+];
 
-const $ = id => document.getElementById(id);
-const today = () => new Date().toISOString().slice(0, 10);
-const onlyDigits = value => String(value || "").replace(/\D/g, "");
-const money = value => Number(value || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-const icons = () => window.lucide && window.lucide.createIcons();
-const userRef = uid => doc(db, "users", uid);
-const col = name => collection(db, "users", user.uid, name);
-const itemRef = (name, id) => doc(db, "users", user.uid, name, id);
-const tenantCol = (uid, name) => collection(db, "users", uid, name);
-const tenantDoc = (uid, name, id) => doc(db, "users", uid, name, id);
-const empty = text => `<div class="empty">${text}</div>`;
+function $(id) {
+  return document.getElementById(id);
+}
 
-function makeSlug(text) {
-  return String(text || "")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
+function money(value) {
+  return Number(value || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
+
+function onlyDigits(value) {
+  return String(value || "").replace(/\D/g, "");
+}
+
+function today() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
 function formatDateBR(dateString) {
@@ -80,73 +98,45 @@ function formatDateBR(dateString) {
   return `${day}/${month}/${year}`;
 }
 
+function makeSlug(value) {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 60);
+}
+
 function whatsappUrl(phone, text) {
-  const cleanPhone = onlyDigits(phone);
-  if (!cleanPhone) return "";
-  return `https://wa.me/55${cleanPhone}?text=${encodeURIComponent(text)}`;
+  const clean = onlyDigits(phone);
+  const finalPhone = clean.startsWith("55") ? clean : `55${clean}`;
+  return `https://wa.me/${finalPhone}?text=${encodeURIComponent(text)}`;
 }
 
-function fileToCompressedDataUrl(file) {
-  return new Promise((resolve, reject) => {
-    if (!file.type.startsWith("image/")) {
-      reject(new Error("Envie apenas arquivos de imagem."));
-      return;
-    }
-
-    if (file.size > 5 * 1024 * 1024) {
-      reject(new Error("A imagem deve ter no maximo 5MB."));
-      return;
-    }
-
-    const reader = new FileReader();
-
-    reader.onload = () => {
-      const img = new Image();
-
-      img.onload = () => {
-        const maxSize = 900;
-        let { width, height } = img;
-
-        if (width > height && width > maxSize) {
-          height = Math.round((height * maxSize) / width);
-          width = maxSize;
-        }
-
-        if (height >= width && height > maxSize) {
-          width = Math.round((width * maxSize) / height);
-          height = maxSize;
-        }
-
-        const canvas = document.createElement("canvas");
-        canvas.width = width;
-        canvas.height = height;
-
-        const ctx = canvas.getContext("2d");
-        ctx.drawImage(img, 0, 0, width, height);
-
-        resolve(canvas.toDataURL("image/jpeg", 0.78));
-      };
-
-      img.onerror = () => reject(new Error("Nao foi possivel ler a imagem."));
-      img.src = reader.result;
-    };
-
-    reader.onerror = () => reject(new Error("Nao foi possivel carregar o arquivo."));
-    reader.readAsDataURL(file);
-  });
+function icon(name) {
+  return `<i data-lucide="${name}"></i>`;
 }
 
-function planExpiration(plan) {
-  const d = new Date();
-  if (plan === "monthly") d.setMonth(d.getMonth() + 1);
-  if (plan === "quarterly") d.setMonth(d.getMonth() + 3);
-  if (plan === "semiannual") d.setMonth(d.getMonth() + 6);
-  if (plan === "annual") d.setFullYear(d.getFullYear() + 1);
-  return d.toISOString().slice(0, 10);
+function renderIcons() {
+  if (window.lucide) window.lucide.createIcons();
 }
 
-function isExpired(date) {
-  return Boolean(date && date < today());
+function tenantDoc(uid, name, id) {
+  return doc(db, "users", uid, name, id);
+}
+
+function tenantCol(uid, name) {
+  return collection(db, "users", uid, name);
+}
+
+function clearSubscriptions() {
+  unsubscribers.forEach(unsub => unsub && unsub());
+  unsubscribers = [];
+}
+
+function empty(title, text) {
+  return `<div class="empty"><strong>${title}</strong><span>${text}</span></div>`;
 }
 
 function timeToMinutes(time) {
@@ -155,30 +145,35 @@ function timeToMinutes(time) {
 }
 
 function minutesToTime(minutes) {
-  return `${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`;
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+}
+
+function overlaps(startA, endA, startB, endB) {
+  return startA < endB && endA > startB;
 }
 
 function dateToWeekKey(dateString) {
-  const [y, m, d] = dateString.split("-").map(Number);
-  return weekKeys[new Date(y, m - 1, d).getDay()];
+  const [year, month, day] = dateString.split("-").map(Number);
+  const date = new Date(year, month - 1, day);
+  const dayIndex = date.getDay();
+  return ["sun", "mon", "tue", "wed", "thu", "fri", "sat"][dayIndex];
 }
 
 function lastDayOfCurrentMonth() {
-  const now = new Date();
-  return new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().slice(0, 10);
+  const d = new Date();
+  const last = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+  return `${last.getFullYear()}-${String(last.getMonth() + 1).padStart(2, "0")}-${String(last.getDate()).padStart(2, "0")}`;
 }
 
 function lastDayOfCurrentYear() {
-  return `${new Date().getFullYear()}-12-31`;
-}
-
-function overlaps(aStart, aEnd, bStart, bEnd) {
-  return aStart < bEnd && bStart < aEnd;
+  const d = new Date();
+  return `${d.getFullYear()}-12-31`;
 }
 
 function getDayIntervals(dayConfig) {
   if (!dayConfig || dayConfig.enabled !== true) return [];
-
   let intervals = [];
 
   if (Array.isArray(dayConfig.intervals) && dayConfig.intervals.length) {
@@ -188,14 +183,8 @@ function getDayIntervals(dayConfig) {
   }
 
   return intervals
-    .map(interval => ({
-      start: interval.start,
-      end: interval.end
-    }))
-    .filter(interval => {
-      if (!interval.start || !interval.end) return false;
-      return timeToMinutes(interval.start) < timeToMinutes(interval.end);
-    })
+    .map(item => ({ start: item.start, end: item.end }))
+    .filter(item => item.start && item.end && timeToMinutes(item.start) < timeToMinutes(item.end))
     .sort((a, b) => timeToMinutes(a.start) - timeToMinutes(b.start));
 }
 
@@ -213,31 +202,24 @@ function getAppointmentBusyRange(appointment) {
   return { start, end };
 }
 
-function getAvailableSlots({ date, service, availability, appointments, bookingWindow }) {
+function getAvailableSlots({ date, service, availability, appointments: list, bookingWindow }) {
   if (!date || !service) return [];
   if (date < today()) return [];
-
   if ((bookingWindow || "month") === "month" && date > lastDayOfCurrentMonth()) return [];
   if (bookingWindow === "year" && date > lastDayOfCurrentYear()) return [];
 
   const weekKey = dateToWeekKey(date);
   const dayConfig = availability?.[weekKey];
   const intervals = getDayIntervals(dayConfig);
-
   if (!intervals.length) return [];
 
   const slot = Number(dayConfig.slot || 30);
   const duration = Number(service.duration || 30);
 
-  const busy = appointments
-    .filter(a => a.date === date)
-    .filter(a => a.status !== "canceled")
+  const busy = list
+    .filter(item => item.date === date && item.status !== "canceled")
     .map(getAppointmentBusyRange)
-    .filter(range =>
-      Number.isFinite(range.start) &&
-      Number.isFinite(range.end) &&
-      range.end > range.start
-    );
+    .filter(range => range.end > range.start);
 
   const result = new Set();
 
@@ -246,1324 +228,1107 @@ function getAvailableSlots({ date, service, availability, appointments, bookingW
     const intervalEnd = timeToMinutes(interval.end);
 
     for (let current = intervalStart; current + duration <= intervalEnd; current += slot) {
-      const currentEnd = current + duration;
-
-      const hasConflict = busy.some(busyRange =>
-        overlaps(current, currentEnd, busyRange.start, busyRange.end)
-      );
-
-      if (!hasConflict) {
-        result.add(minutesToTime(current));
-      }
+      const end = current + duration;
+      const conflict = busy.some(range => overlaps(current, end, range.start, range.end));
+      if (!conflict) result.add(minutesToTime(current));
     }
   });
 
   return Array.from(result).sort();
 }
 
+function fileToCompressedDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    if (!file) return resolve("");
+
+    const reader = new FileReader();
+
+    reader.onload = () => {
+      const image = new Image();
+
+      image.onload = () => {
+        const max = 800;
+        const ratio = Math.min(max / image.width, max / image.height, 1);
+        const canvas = document.createElement("canvas");
+
+        canvas.width = Math.round(image.width * ratio);
+        canvas.height = Math.round(image.height * ratio);
+
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+
+        resolve(canvas.toDataURL("image/jpeg", 0.72));
+      };
+
+      image.onerror = reject;
+      image.src = reader.result;
+    };
+
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
 function renderAuth() {
+  const mode = location.hash === "#register" ? "register" : "login";
+
   root.innerHTML = `
-    <section class="auth-page">
+    <section class="auth-page modern-auth">
       <div class="auth-hero">
-        <div class="auth-brand">BQ Agenda</div>
-        <div class="auth-copy">
-          <h1>Gestao de agenda para negocios que vivem de horario.</h1>
-          <p>Controle estabelecimentos, clientes, servicos, pagamentos e indicadores em uma plataforma web simples de operar.</p>
-          <div class="auth-points">
-            <div class="auth-point"><strong>Agenda online</strong><span>Clientes agendam pelo link publico.</span></div>
-            <div class="auth-point"><strong>Painel BQ</strong><span>Aprove, bloqueie e monitore planos.</span></div>
-            <div class="auth-point"><strong>BI do negocio</strong><span>Acompanhe uso, pendencias e crescimento.</span></div>
-          </div>
+        <img src="logo.png" alt="BQ Agenda" class="auth-logo">
+
+        <h1>Agenda online para negócios que vivem de horário.</h1>
+
+        <p>
+          Organize seus agendamentos, confirme pelo WhatsApp, acompanhe seus clientes
+          e controle seus ganhos em uma plataforma simples, web e pronta para usar.
+        </p>
+
+        <div class="auth-benefits">
+          <div><strong>Agenda online</strong><span>Seu cliente escolhe serviço, data e horário pelo link público.</span></div>
+          <div><strong>Confirmação rápida</strong><span>O cliente envia os dados do agendamento direto para o WhatsApp do estabelecimento.</span></div>
+          <div><strong>Gestão completa</strong><span>Controle clientes, serviços, pagamentos, agenda e financeiro.</span></div>
         </div>
+
         <small>100% web, pronto para GitHub Pages e Firebase.</small>
       </div>
-      <div class="auth-panel-wrap">
-        <div class="auth-box">
-          <h2>Acessar plataforma</h2>
-          <p>Entre ou envie o cadastro do estabelecimento para analise.</p>
-          <div class="tabs">
-            <button id="loginTab" class="active">Entrar</button>
-            <button id="registerTab">Cadastrar estabelecimento</button>
-          </div>
-          <div id="authView"></div>
+
+      <div class="auth-card">
+        <div class="auth-card-head">
+          <h2>${mode === "register" ? "Cadastrar estabelecimento" : "Acessar plataforma"}</h2>
+          <p>${mode === "register" ? "Envie seu cadastro para análise e fale com a BQ pelo WhatsApp." : "Entre na sua conta ou envie o cadastro do estabelecimento para análise."}</p>
         </div>
+
+        <div class="auth-tabs">
+          <button class="${mode === "login" ? "active" : ""}" onclick="location.hash='#login'">Entrar</button>
+          <button class="${mode === "register" ? "active" : ""}" onclick="location.hash='#register'">Cadastrar estabelecimento</button>
+        </div>
+
+        <div id="authForm"></div>
       </div>
     </section>
   `;
 
-  $("loginTab").onclick = renderLoginForm;
-  $("registerTab").onclick = renderRegisterForm;
-  renderLoginForm();
-}
-
-function setAuthTab(active) {
-  $("loginTab").classList.toggle("active", active === "login");
-  $("registerTab").classList.toggle("active", active === "register");
+  mode === "register" ? renderRegisterForm() : renderLoginForm();
+  renderIcons();
 }
 
 function renderLoginForm() {
-  setAuthTab("login");
-
-  $("authView").innerHTML = `
-    <form id="loginForm" class="form">
-      <input name="email" type="email" placeholder="E-mail" required>
-      <input name="password" type="password" placeholder="Senha" required>
-      <button class="btn" type="submit"><i data-lucide="log-in"></i>Entrar</button>
+  $("authForm").innerHTML = `
+    <form id="loginForm" class="form-stack">
+      <input id="loginEmail" type="email" placeholder="E-mail" required>
+      <input id="loginPassword" type="password" placeholder="Senha" required>
+      <button class="btn primary" type="submit">${icon("log-in")} Entrar</button>
+      <div id="authMessage" class="form-message"></div>
     </form>
   `;
 
   $("loginForm").onsubmit = async event => {
     event.preventDefault();
+    $("authMessage").textContent = "Entrando...";
 
     try {
-      const data = Object.fromEntries(new FormData(event.target));
-      await signInWithEmailAndPassword(auth, data.email, data.password);
+      await signInWithEmailAndPassword(auth, $("loginEmail").value, $("loginPassword").value);
     } catch (error) {
-      alert("Erro ao entrar: " + error.message);
-      console.error(error);
+      $("authMessage").textContent = "Erro ao entrar: " + error.message;
     }
   };
 
-  icons();
+  renderIcons();
 }
 
 function renderRegisterForm() {
-  setAuthTab("register");
-
-  $("authView").innerHTML = `
-    <form id="registerForm" class="form">
-      <input name="ownerName" placeholder="Nome do responsavel" required>
-      <input name="businessName" placeholder="Nome do estabelecimento" required>
-      <input name="segment" placeholder="Segmento" required>
-      <div class="row">
-        <input name="city" placeholder="Cidade" required>
-        <input name="phone" placeholder="WhatsApp" required>
+  $("authForm").innerHTML = `
+    <form id="registerForm" class="form-stack">
+      <input id="ownerName" placeholder="Nome do responsável" required>
+      <input id="businessName" placeholder="Nome do estabelecimento" required>
+      <input id="segment" placeholder="Segmento" required>
+      <div class="grid-2">
+        <input id="city" placeholder="Cidade" required>
+        <input id="whatsapp" placeholder="WhatsApp" required>
       </div>
-      <select name="plan" required>
-        <option value="monthly">Plano mensal</option>
-        <option value="quarterly">Plano trimestral</option>
-        <option value="semiannual">Plano semestral</option>
-        <option value="annual">Plano anual</option>
+      <select id="plan" required>
+        <option value="monthly">Plano mensal - R$ 29,99</option>
+        <option value="quarterly">Plano trimestral - R$ 59,99</option>
       </select>
-      <input name="email" type="email" placeholder="E-mail" required>
-      <input name="password" type="password" placeholder="Senha" minlength="6" required>
-      <button class="btn" type="submit"><i data-lucide="send"></i>Enviar para analise</button>
+      <input id="registerEmail" type="email" placeholder="E-mail" required>
+      <input id="registerPassword" type="password" placeholder="Senha" minlength="6" required>
+      <button class="btn primary" type="submit">${icon("send")} Enviar para análise</button>
+      <a class="btn whatsapp" target="_blank" rel="noopener" href="${whatsappUrl(bqWhatsapp, "Olá, BQ Agenda! Tenho interesse em cadastrar meu estabelecimento.")}">${icon("message-circle")} Falar com a BQ</a>
+      <div id="authMessage" class="form-message"></div>
     </form>
   `;
 
   $("registerForm").onsubmit = async event => {
     event.preventDefault();
 
+    const data = {
+      ownerName: $("ownerName").value.trim(),
+      businessName: $("businessName").value.trim(),
+      segment: $("segment").value.trim(),
+      city: $("city").value.trim(),
+      whatsapp: onlyDigits($("whatsapp").value),
+      plan: $("plan").value,
+      email: $("registerEmail").value.trim(),
+      password: $("registerPassword").value
+    };
+
+    $("authMessage").textContent = "Criando cadastro...";
+
     try {
-      const data = Object.fromEntries(new FormData(event.target));
       const credential = await createUserWithEmailAndPassword(auth, data.email, data.password);
+      const uid = credential.user.uid;
       const slug = makeSlug(data.businessName);
 
-      await setDoc(userRef(credential.user.uid), {
-        role: "establishment",
-        status: "pending",
-        blocked: false,
-        paymentStatus: "waiting",
-        plan: data.plan,
-        planExpiresAt: "",
+      await setDoc(doc(db, "users", uid), {
+        uid,
         ownerName: data.ownerName,
         businessName: data.businessName,
         segment: data.segment,
         city: data.city,
-        phone: onlyDigits(data.phone),
+        whatsapp: data.whatsapp,
+        plan: data.plan,
+        planLabel: plans[data.plan],
+        planPrice: planPrices[data.plan],
         email: data.email,
-        publicBooking: true,
-        photoURL: "",
+        role: "establishment",
+        status: "pending",
+        blocked: false,
         slug,
         bookingWindow: "month",
-        availability: {},
+        availability: defaultAvailability(),
         createdAt: serverTimestamp()
       });
 
       await setDoc(doc(db, "publicEstablishments", slug), {
-        uid: credential.user.uid,
+        uid,
+        slug,
         businessName: data.businessName,
         segment: data.segment,
         city: data.city,
-        photoURL: "",
-        publicBooking: true,
-        updatedAt: serverTimestamp()
+        whatsapp: data.whatsapp,
+        status: "pending",
+        blocked: false,
+        createdAt: serverTimestamp()
       });
 
-      alert("Cadastro enviado com sucesso. Aguarde a aprovacao da BQ.");
-    } catch (error) {
-      if (error.code === "auth/email-already-in-use") {
-        alert("Este e-mail ja esta cadastrado. Clique em Entrar e use sua senha.");
-      } else {
-        alert("Erro ao cadastrar: " + error.message);
-      }
+      const message = [
+        "Olá, BQ Agenda!",
+        "",
+        "Acabei de solicitar meu cadastro na plataforma.",
+        "",
+        `Responsável: ${data.ownerName}`,
+        `Estabelecimento: ${data.businessName}`,
+        `Segmento: ${data.segment}`,
+        `Cidade: ${data.city}`,
+        `WhatsApp: ${data.whatsapp}`,
+        `Plano escolhido: ${plans[data.plan]}`,
+        `Valor: ${money(planPrices[data.plan])}`,
+        `E-mail: ${data.email}`,
+        "",
+        "Aguardo contato para aprovação do meu cadastro."
+      ].join("\n");
 
-      console.error(error);
+      window.open(whatsappUrl(bqWhatsapp, message), "_blank");
+      $("authMessage").textContent = "Cadastro enviado. Aguarde aprovação da BQ.";
+    } catch (error) {
+      $("authMessage").textContent = "Erro ao cadastrar: " + error.message;
     }
   };
 
-  icons();
+  renderIcons();
 }
 
-function renderNotice(title, text) {
-  root.innerHTML = `
-    <section class="notice">
-      <h1>${title}</h1>
-      <p class="muted">${text}</p>
-      <button class="btn secondary" id="logoutBtn">Sair</button>
-    </section>
-  `;
-
-  $("logoutBtn").onclick = () => signOut(auth);
-}
-
-function canAccessApp() {
-  if (!profile) return false;
-  if (profile.role === "admin") return true;
-  return !profile.blocked && profile.status === "active" && profile.paymentStatus === "paid" && !isExpired(profile.planExpiresAt);
-}
-
-function nav(id, icon, label) {
-  return `<button class="${tab === id ? "active" : ""}" data-tab="${id}"><i data-lucide="${icon}"></i>${label}</button>`;
+function defaultAvailability() {
+  return {
+    mon: { enabled: true, slot: 30, intervals: [{ start: "09:00", end: "18:00" }] },
+    tue: { enabled: true, slot: 30, intervals: [{ start: "09:00", end: "18:00" }] },
+    wed: { enabled: true, slot: 30, intervals: [{ start: "09:00", end: "18:00" }] },
+    thu: { enabled: true, slot: 30, intervals: [{ start: "09:00", end: "18:00" }] },
+    fri: { enabled: true, slot: 30, intervals: [{ start: "09:00", end: "18:00" }] },
+    sat: { enabled: false, slot: 30, intervals: [{ start: "09:00", end: "12:00" }] },
+    sun: { enabled: false, slot: 30, intervals: [{ start: "09:00", end: "12:00" }] }
+  };
 }
 
 function renderShell() {
-  const isAdmin = profile.role === "admin";
-
-  const titleMap = {
-    admin: "BI Administrativo BQ",
-    dashboard: "Resumo",
-    agenda: "Agenda",
-    clientes: "Clientes",
-    servicos: "Servicos",
-    financeiro: "Financeiro",
-    disponibilidade: "Disponibilidade",
-    online: "Perfil e agendamento"
-  };
+  const admin = profile?.role === "admin";
 
   root.innerHTML = `
-    <section class="app">
+    <section class="app-shell">
       <aside class="sidebar">
         <div class="brand">
-          <strong>BQ Agenda</strong>
-          <span>${isAdmin ? "Painel administrativo" : profile.businessName || "Estabelecimento"}</span>
+          <img src="logo.png" alt="BQ Agenda">
         </div>
-        <nav class="nav">
-          ${isAdmin ? nav("admin", "chart-no-axes-combined", "BI") : `
-            ${nav("dashboard", "layout-dashboard", "Resumo")}
-            ${nav("agenda", "calendar-days", "Agenda")}
-            ${nav("clientes", "users", "Clientes")}
-            ${nav("servicos", "scissors", "Servicos")}
-            ${nav("financeiro", "wallet", "Financeiro")}
-            ${nav("disponibilidade", "clock", "Disponibilidade")}
-            ${nav("online", "image", "Perfil")}
-          `}
+
+        <nav>
+          ${navButton("dashboard", "layout-dashboard", "Dashboard")}
+          ${admin ? navButton("admin", "shield-check", "Admin BQ") : ""}
+          ${!admin ? navButton("agenda", "calendar-days", "Agenda") : ""}
+          ${!admin ? navButton("clientes", "users", "Clientes") : ""}
+          ${!admin ? navButton("servicos", "scissors", "Serviços") : ""}
+          ${!admin ? navButton("financeiro", "wallet", "Financeiro") : ""}
+          ${!admin ? navButton("disponibilidade", "clock", "Disponibilidade") : ""}
+          ${!admin ? navButton("online", "globe", "Link online") : ""}
         </nav>
+
+        <button class="btn secondary" id="logoutBtn">${icon("log-out")} Sair</button>
       </aside>
-      <section class="content">
-        <header class="topbar">
-          <div>
-            <h2>${titleMap[tab]}</h2>
-            <p>${isAdmin ? "Acompanhe operacao, planos, pendencias e uso da plataforma." : "Gerencie sua rotina em um unico lugar."}</p>
-          </div>
-          <button class="btn secondary" id="logoutBtn"><i data-lucide="log-out"></i>Sair</button>
-        </header>
+
+      <main class="content">
         <div id="view"></div>
-      </section>
+      </main>
     </section>
   `;
 
-  document.querySelectorAll("[data-tab]").forEach(button => {
-    button.onclick = () => {
-      tab = button.dataset.tab;
-      renderShell();
-    };
-  });
-
   $("logoutBtn").onclick = () => signOut(auth);
 
-  if (isAdmin) renderAdmin();
-  if (!isAdmin && tab === "dashboard") renderDashboard();
-  if (!isAdmin && tab === "agenda") renderAgenda();
-  if (!isAdmin && tab === "clientes") renderClientes();
-  if (!isAdmin && tab === "servicos") renderServicos();
-  if (!isAdmin && tab === "financeiro") renderFinanceiro();
-  if (!isAdmin && tab === "disponibilidade") renderDisponibilidade();
-  if (!isAdmin && tab === "online") renderOnline();
+  renderView();
+  renderIcons();
+}
 
-  icons();
+function navButton(id, iconName, label) {
+  return `<button class="${activeTab === id ? "active" : ""}" onclick="window.changeTab('${id}')">${icon(iconName)} ${label}</button>`;
+}
+
+window.changeTab = tab => {
+  activeTab = tab;
+  renderShell();
+};
+
+function renderView() {
+  if (activeTab === "admin") return renderAdmin();
+  if (activeTab === "agenda") return renderAgenda();
+  if (activeTab === "clientes") return renderClientes();
+  if (activeTab === "servicos") return renderServicos();
+  if (activeTab === "financeiro") return renderFinanceiro();
+  if (activeTab === "disponibilidade") return renderDisponibilidade();
+  if (activeTab === "online") return renderOnline();
+  return renderDashboard();
 }
 
 function renderDashboard() {
-  const month = today().slice(0, 7);
+  const future = appointments.filter(a => a.date >= today() && a.status !== "canceled").length;
+  const totalClients = clients.length;
+  const paid = transactions.filter(t => t.type === "income").reduce((sum, t) => sum + Number(t.amount || 0), 0);
+  const pending = appointments.filter(a => a.status === "pending").length;
 
-  const paidMonth = appointments
-    .filter(a => (a.date || "").startsWith(month) && a.paymentStatus === "paid")
-    .reduce((s, a) => s + Number(a.price || 0), 0);
+  $("view").innerHTML = `
+    <header class="page-head">
+      <div>
+        <h1>Dashboard</h1>
+        <p>${profile.businessName || "BQ Agenda"}</p>
+      </div>
+    </header>
 
-  const pendingMoney = appointments
-    .filter(a => a.paymentStatus !== "paid")
-    .reduce((s, a) => s + Number(a.price || 0), 0);
+    <section class="metrics">
+      <div class="metric"><span>Agenda futura</span><strong>${future}</strong></div>
+      <div class="metric"><span>Clientes</span><strong>${totalClients}</strong></div>
+      <div class="metric"><span>Receita registrada</span><strong>${money(paid)}</strong></div>
+      <div class="metric"><span>Pendentes</span><strong>${pending}</strong></div>
+    </section>
 
-  view.innerHTML = `
-    <div class="grid cards">
-      <div class="card"><small>Ganhos do mes</small><strong>${money(paidMonth)}</strong></div>
-      <div class="card"><small>Valores pendentes</small><strong>${money(pendingMoney)}</strong></div>
-      <div class="card"><small>Clientes</small><strong>${clients.length}</strong></div>
-      <div class="card"><small>Agendamentos</small><strong>${appointments.length}</strong></div>
-    </div>
-    <div class="panel" style="margin-top:16px">
-      <h3>Proximos agendamentos</h3>
-      <div class="list">${appointments.slice(0, 8).map(appointmentItem).join("") || empty("Nenhum agendamento.")}</div>
-    </div>
+    <section class="panel">
+      <h2>Próximos agendamentos</h2>
+      <div class="list">
+        ${
+          appointments
+            .filter(a => a.date >= today() && a.status !== "canceled")
+            .sort((a, b) => `${a.date}${a.time}`.localeCompare(`${b.date}${b.time}`))
+            .slice(0, 8)
+            .map(appointmentItem)
+            .join("") || empty("Nada por enquanto", "Os novos agendamentos aparecerão aqui.")
+        }
+      </div>
+    </section>
   `;
+  renderIcons();
 }
 
 function renderAgenda() {
-  view.innerHTML = `
-    <div class="grid two">
-      <form id="appointmentForm" class="panel form">
-        <h3>Novo agendamento</h3>
-        <input name="clientName" placeholder="Nome do cliente" required>
-        <input name="clientPhone" placeholder="WhatsApp do cliente" required>
-        <select name="serviceId" required>
-          <option value="">Servico</option>
+  $("view").innerHTML = `
+    <header class="page-head">
+      <div><h1>Agenda</h1><p>Crie e acompanhe os atendimentos.</p></div>
+    </header>
+
+    <section class="panel">
+      <form id="appointmentForm" class="form-grid">
+        <input id="apClientName" placeholder="Nome do cliente" required>
+        <input id="apPhone" placeholder="WhatsApp" required>
+        <select id="apService" required>
+          <option value="">Serviço</option>
           ${services.map(s => `<option value="${s.id}">${s.name} - ${money(s.price)} - ${s.duration} min</option>`).join("")}
         </select>
-        <div class="row">
-          <input name="date" type="date" value="${today()}" required>
-          <input name="time" type="time" required>
-        </div>
-        <select name="paymentMethod">
-          ${Object.entries(paymentMethods).map(([k, v]) => `<option value="${k}">${v}</option>`).join("")}
-        </select>
-        <select name="paymentStatus">
-          <option value="pending">Pagamento pendente</option>
-          <option value="paid">Pago</option>
-          <option value="canceled">Cancelado</option>
-        </select>
-        <textarea name="notes" placeholder="Observacoes"></textarea>
-        <button class="btn" type="submit">Salvar agendamento</button>
+        <input id="apDate" type="date" min="${today()}" required>
+        <select id="apTime" required><option value="">Escolha data e serviço</option></select>
+        <select id="apPayment">${paymentMethods.map(p => `<option>${p}</option>`).join("")}</select>
+        <textarea id="apNotes" placeholder="Observações"></textarea>
+        <button class="btn primary" type="submit">${icon("calendar-plus")} Salvar agendamento</button>
       </form>
-      <div class="panel">
-        <h3>Agenda</h3>
-        <div class="list">${appointments.map(appointmentItem).join("") || empty("Nenhum agendamento.")}</div>
-      </div>
-    </div>
+    </section>
+
+    <section class="panel">
+      <h2>Agendamentos</h2>
+      <div class="list">${appointments.map(appointmentItem).join("") || empty("Sem agendamentos", "Cadastre ou divulgue seu link online.")}</div>
+    </section>
   `;
 
-  $("appointmentForm").onsubmit = saveAppointment;
+  const updateTimes = () => {
+    const service = services.find(s => s.id === $("apService").value);
+    const date = $("apDate").value;
+    const slots = getAvailableSlots({
+      date,
+      service,
+      availability: profile.availability || defaultAvailability(),
+      appointments,
+      bookingWindow: profile.bookingWindow || "month"
+    });
+
+    $("apTime").innerHTML = `<option value="">Escolha um horário</option>${slots.map(t => `<option>${t}</option>`).join("")}`;
+  };
+
+  $("apService").onchange = updateTimes;
+  $("apDate").onchange = updateTimes;
+
+  $("appointmentForm").onsubmit = async event => {
+    event.preventDefault();
+    await saveAppointment({
+      clientName: $("apClientName").value.trim(),
+      phone: $("apPhone").value,
+      serviceId: $("apService").value,
+      date: $("apDate").value,
+      time: $("apTime").value,
+      paymentMethod: $("apPayment").value,
+      notes: $("apNotes").value.trim(),
+      source: "manual",
+      status: "confirmed"
+    });
+    $("appointmentForm").reset();
+  };
+
+  renderIcons();
 }
 
-async function saveAppointment(event) {
-  event.preventDefault();
-
-  const data = Object.fromEntries(new FormData(event.target));
-  const phoneKey = onlyDigits(data.clientPhone);
+async function saveAppointment(data) {
   const service = services.find(s => s.id === data.serviceId);
+  const phoneKey = onlyDigits(data.phone);
+  const startMinutes = timeToMinutes(data.time);
+  const duration = Number(service?.duration || 30);
+  const endMinutes = startMinutes + duration;
 
-  if (!service) {
-    alert("Selecione um servico.");
-    return;
-  }
-
-  const availableSlots = getAvailableSlots({
-    date: data.date,
-    service,
-    availability: profile.availability || {},
-    appointments,
-    bookingWindow: profile.bookingWindow || "month"
-  });
-
-  if (!availableSlots.includes(data.time)) {
-    alert("Este horario nao esta disponivel para a duracao desse servico.");
-    return;
-  }
-
-  await setDoc(itemRef("clients", phoneKey), {
-    id: phoneKey,
+  await setDoc(tenantDoc(currentUser.uid, "clients", phoneKey), {
     phoneKey,
     name: data.clientName,
     phone: phoneKey,
     updatedAt: serverTimestamp(),
-    createdBy: "establishment"
+    createdAt: serverTimestamp()
   }, { merge: true });
 
-  await addDoc(col("appointments"), {
-    clientId: phoneKey,
-    clientName: data.clientName,
-    clientPhone: phoneKey,
-    serviceId: data.serviceId,
-    serviceName: service.name || "",
-    price: Number(service.price || 0),
-    duration: Number(service.duration || 30),
-    date: data.date,
-    time: data.time,
-    startMinutes: timeToMinutes(data.time),
-    endMinutes: timeToMinutes(data.time) + Number(service.duration || 30),
-    status: "confirmed",
-    paymentMethod: data.paymentMethod,
-    paymentStatus: data.paymentStatus,
-    notes: data.notes,
-    source: "manual",
+  await addDoc(tenantCol(currentUser.uid, "appointments"), {
+    ...data,
+    phone: phoneKey,
+    phoneKey,
+    serviceName: service?.name || "",
+    servicePrice: Number(service?.price || 0),
+    duration,
+    startMinutes,
+    endMinutes,
     createdAt: serverTimestamp()
   });
-
-  event.target.reset();
 }
 
 function appointmentItem(a) {
-  const phone = onlyDigits(a.clientPhone);
-  const msg = encodeURIComponent(`Ola ${a.clientName}, seu horario em ${formatDateBR(a.date)} as ${a.time} esta registrado.`);
-
   return `
     <article class="item">
-      <div class="item-head">
-        <strong>${a.clientName}</strong>
-        <span class="badge ${a.paymentStatus === "paid" ? "paid" : "pending"}">${a.paymentStatus === "paid" ? "Pago" : "Pendente"}</span>
+      <div>
+        <strong>${a.clientName || "Cliente"}</strong>
+        <span>${formatDateBR(a.date)} às ${a.time} • ${a.serviceName || ""} • ${a.status || "pending"}</span>
       </div>
-      <span>${formatDateBR(a.date) || ""} as ${a.time || ""} - ${a.serviceName || "Servico"} (${a.duration || 30} min)</span>
-      <span>${money(a.price)} - ${paymentMethods[a.paymentMethod] || "Sem forma"}</span>
-      <div class="actions">
-        ${phone ? `<a class="btn secondary" target="_blank" href="https://wa.me/55${phone}?text=${msg}">WhatsApp</a>` : ""}
-        <button class="btn ok" onclick="window.markPaid('${a.id}')">Marcar pago</button>
-        <button class="btn danger" onclick="window.removeAppointment('${a.id}')">Excluir</button>
+      <div class="item-actions">
+        <span>${money(a.servicePrice || 0)}</span>
+        <button class="icon-btn" onclick="window.removeAppointment('${a.id}')">${icon("trash-2")}</button>
       </div>
     </article>
   `;
 }
 
-window.markPaid = async id => setDoc(itemRef("appointments", id), { paymentStatus: "paid" }, { merge: true });
-
 window.removeAppointment = async id => {
-  if (confirm("Excluir agendamento?")) {
-    await deleteDoc(itemRef("appointments", id));
-  }
+  if (!confirm("Remover agendamento?")) return;
+  await deleteDoc(tenantDoc(currentUser.uid, "appointments", id));
 };
 
 function renderClientes() {
-  view.innerHTML = `
-    <div class="grid two">
-      <form id="clientForm" class="panel form">
-        <h3>Novo cliente</h3>
-        <input name="name" placeholder="Nome" required>
-        <input name="phone" placeholder="WhatsApp" required>
-        <textarea name="notes" placeholder="Observacoes"></textarea>
-        <button class="btn" type="submit">Salvar cliente</button>
-      </form>
-      <div class="panel">
-        <h3>Base de clientes</h3>
-        <div class="list">${clients.map(clientItem).join("") || empty("Nenhum cliente.")}</div>
+  $("view").innerHTML = `
+    <header class="page-head"><div><h1>Clientes</h1><p>Base criada automaticamente pelo WhatsApp.</p></div></header>
+    <section class="panel">
+      <div class="list">
+        ${clients.map(c => `
+          <article class="item">
+            <div><strong>${c.name || "Cliente"}</strong><span>${c.phone || c.phoneKey || ""}</span></div>
+            <button class="icon-btn" onclick="window.removeClient('${c.id}')">${icon("trash-2")}</button>
+          </article>
+        `).join("") || empty("Sem clientes", "Quando alguém agendar, o cliente será salvo aqui.")}
       </div>
-    </div>
+    </section>
   `;
-
-  $("clientForm").onsubmit = async event => {
-    event.preventDefault();
-
-    const data = Object.fromEntries(new FormData(event.target));
-    const phoneKey = onlyDigits(data.phone);
-
-    await setDoc(itemRef("clients", phoneKey), {
-      id: phoneKey,
-      phoneKey,
-      name: data.name,
-      phone: phoneKey,
-      notes: data.notes,
-      updatedAt: serverTimestamp()
-    }, { merge: true });
-
-    event.target.reset();
-  };
-}
-
-function clientItem(c) {
-  return `
-    <article class="item">
-      <div class="item-head">
-        <strong>${c.name}</strong>
-        <button class="btn danger" onclick="window.removeClient('${c.id}')">Excluir</button>
-      </div>
-      <span class="muted">${c.phone || ""}</span>
-      <span>${c.notes || ""}</span>
-    </article>
-  `;
+  renderIcons();
 }
 
 window.removeClient = async id => {
-  if (confirm("Excluir cliente?")) {
-    await deleteDoc(itemRef("clients", id));
-  }
+  if (!confirm("Remover cliente?")) return;
+  await deleteDoc(tenantDoc(currentUser.uid, "clients", id));
 };
 
 function renderServicos() {
-  view.innerHTML = `
-    <div class="grid two">
-      <form id="serviceForm" class="panel form">
-        <h3>Novo servico</h3>
-        <input name="name" placeholder="Nome do servico" required>
-        <div class="row">
-          <input name="price" type="number" min="0" step="0.01" placeholder="Preco" required>
-          <input name="duration" type="number" min="5" step="5" placeholder="Duracao em minutos" required>
-        </div>
-        <textarea name="description" placeholder="Descricao"></textarea>
-        <button class="btn" type="submit">Salvar servico</button>
+  $("view").innerHTML = `
+    <header class="page-head"><div><h1>Serviços</h1><p>Configure preços e duração para evitar conflitos de horário.</p></div></header>
+
+    <section class="panel">
+      <form id="serviceForm" class="form-grid">
+        <input id="serviceName" placeholder="Nome do serviço" required>
+        <input id="servicePrice" type="number" step="0.01" min="0" placeholder="Valor" required>
+        <input id="serviceDuration" type="number" min="5" step="5" placeholder="Duração em minutos" required>
+        <button class="btn primary" type="submit">${icon("plus")} Adicionar serviço</button>
       </form>
-      <div class="panel">
-        <h3>Servicos</h3>
-        <div class="list">${services.map(serviceItem).join("") || empty("Nenhum servico.")}</div>
+    </section>
+
+    <section class="panel">
+      <div class="list">
+        ${services.map(s => `
+          <article class="item">
+            <div><strong>${s.name}</strong><span>${money(s.price)} • ${s.duration} min</span></div>
+            <button class="icon-btn" onclick="window.removeService('${s.id}')">${icon("trash-2")}</button>
+          </article>
+        `).join("") || empty("Sem serviços", "Adicione os serviços que seus clientes poderão escolher.")}
       </div>
-    </div>
+    </section>
   `;
 
   $("serviceForm").onsubmit = async event => {
     event.preventDefault();
 
-    const data = Object.fromEntries(new FormData(event.target));
-
-    await addDoc(col("services"), {
-      name: data.name,
-      price: Number(data.price || 0),
-      duration: Number(data.duration || 0),
-      description: data.description,
+    await addDoc(tenantCol(currentUser.uid, "services"), {
+      name: $("serviceName").value.trim(),
+      price: Number($("servicePrice").value),
+      duration: Number($("serviceDuration").value),
       active: true,
       createdAt: serverTimestamp()
     });
 
-    event.target.reset();
+    $("serviceForm").reset();
   };
-}
 
-function serviceItem(s) {
-  return `
-    <article class="item">
-      <div class="item-head">
-        <strong>${s.name}</strong>
-        <button class="btn danger" onclick="window.removeService('${s.id}')">Excluir</button>
-      </div>
-      <span>${money(s.price)} - ${s.duration} min</span>
-      <span class="muted">${s.description || ""}</span>
-    </article>
-  `;
+  renderIcons();
 }
 
 window.removeService = async id => {
-  if (confirm("Excluir servico?")) {
-    await deleteDoc(itemRef("services", id));
-  }
+  if (!confirm("Remover serviço?")) return;
+  await deleteDoc(tenantDoc(currentUser.uid, "services", id));
 };
 
 function renderFinanceiro() {
-  const paid = appointments.filter(a => a.paymentStatus === "paid");
-  const pending = appointments.filter(a => a.paymentStatus !== "paid");
+  const income = transactions.filter(t => t.type === "income").reduce((sum, t) => sum + Number(t.amount || 0), 0);
+  const expense = transactions.filter(t => t.type === "expense").reduce((sum, t) => sum + Number(t.amount || 0), 0);
 
-  const totalPaid = paid.reduce((s, a) => s + Number(a.price || 0), 0);
-  const totalPending = pending.reduce((s, a) => s + Number(a.price || 0), 0);
-  const expenses = transactions.filter(t => t.type === "expense").reduce((s, t) => s + Number(t.value || 0), 0);
+  $("view").innerHTML = `
+    <header class="page-head"><div><h1>Financeiro</h1><p>Acompanhe ganhos e meios de pagamento.</p></div></header>
 
-  const byMethod = Object.keys(paymentMethods).map(method => {
-    const total = paid.filter(a => a.paymentMethod === method).reduce((s, a) => s + Number(a.price || 0), 0);
-    return `<div class="item"><strong>${paymentMethods[method]}</strong><span>${money(total)}</span></div>`;
-  }).join("");
+    <section class="metrics">
+      <div class="metric"><span>Entradas</span><strong>${money(income)}</strong></div>
+      <div class="metric"><span>Saídas</span><strong>${money(expense)}</strong></div>
+      <div class="metric"><span>Saldo</span><strong>${money(income - expense)}</strong></div>
+    </section>
 
-  view.innerHTML = `
-    <div class="grid cards">
-      <div class="card"><small>Recebido</small><strong class="ok-text">${money(totalPaid)}</strong></div>
-      <div class="card"><small>Pendente</small><strong>${money(totalPending)}</strong></div>
-      <div class="card"><small>Despesas</small><strong class="danger-text">${money(expenses)}</strong></div>
-      <div class="card"><small>Saldo</small><strong>${money(totalPaid - expenses)}</strong></div>
-    </div>
-    <div class="grid two" style="margin-top:16px">
-      <form id="expenseForm" class="panel form">
-        <h3>Nova despesa</h3>
-        <input name="description" placeholder="Descricao" required>
-        <div class="row">
-          <input name="value" type="number" min="0" step="0.01" placeholder="Valor" required>
-          <input name="date" type="date" value="${today()}" required>
-        </div>
-        <button class="btn" type="submit">Salvar despesa</button>
+    <section class="panel">
+      <form id="transactionForm" class="form-grid">
+        <select id="trType"><option value="income">Entrada</option><option value="expense">Saída</option></select>
+        <input id="trDescription" placeholder="Descrição" required>
+        <input id="trAmount" type="number" step="0.01" min="0" placeholder="Valor" required>
+        <select id="trMethod">${paymentMethods.map(p => `<option>${p}</option>`).join("")}</select>
+        <input id="trDate" type="date" value="${today()}" required>
+        <button class="btn primary" type="submit">${icon("plus")} Registrar</button>
       </form>
-      <div class="panel">
-        <h3>Ganhos por pagamento</h3>
-        <div class="list">${byMethod}</div>
+    </section>
+
+    <section class="panel">
+      <div class="list">
+        ${transactions.map(t => `
+          <article class="item">
+            <div><strong>${t.description}</strong><span>${formatDateBR(t.date)} • ${t.method} • ${t.type === "income" ? "Entrada" : "Saída"}</span></div>
+            <span>${money(t.amount)}</span>
+          </article>
+        `).join("") || empty("Sem lançamentos", "Registre entradas e saídas do negócio.")}
       </div>
-    </div>
+    </section>
   `;
 
-  $("expenseForm").onsubmit = async event => {
+  $("transactionForm").onsubmit = async event => {
     event.preventDefault();
 
-    const data = Object.fromEntries(new FormData(event.target));
-
-    await addDoc(col("transactions"), {
-      type: "expense",
-      description: data.description,
-      value: Number(data.value || 0),
-      date: data.date,
+    await addDoc(tenantCol(currentUser.uid, "transactions"), {
+      type: $("trType").value,
+      description: $("trDescription").value.trim(),
+      amount: Number($("trAmount").value),
+      method: $("trMethod").value,
+      date: $("trDate").value,
       createdAt: serverTimestamp()
     });
 
-    event.target.reset();
+    $("transactionForm").reset();
+    $("trDate").value = today();
   };
+
+  renderIcons();
 }
 
 function renderDisponibilidade() {
-  const availability = profile.availability || {};
-  const bookingWindow = profile.bookingWindow || "month";
+  const availability = profile.availability || defaultAvailability();
 
-  const days = [
-    ["monday", "Segunda"],
-    ["tuesday", "Terca"],
-    ["wednesday", "Quarta"],
-    ["thursday", "Quinta"],
-    ["friday", "Sexta"],
-    ["saturday", "Sabado"],
-    ["sunday", "Domingo"]
-  ];
+  $("view").innerHTML = `
+    <header class="page-head"><div><h1>Disponibilidade</h1><p>Cadastre um ou mais intervalos por dia.</p></div></header>
 
-  function intervalRows(intervals) {
-    return intervals.map(interval => `
-      <div class="row interval-row">
-        <input class="interval-start" type="time" value="${interval.start || "09:00"}">
-        <input class="interval-end" type="time" value="${interval.end || "18:00"}">
-        <button class="btn danger" type="button" onclick="window.removeAvailabilityInterval(this)">Remover</button>
-      </div>
-    `).join("");
-  }
-
-  view.innerHTML = `
-    <form id="availabilityForm" class="panel form">
-      <h3>Horarios disponiveis</h3>
-      <select name="bookingWindow">
-        <option value="month" ${bookingWindow === "month" ? "selected" : ""}>Liberar agenda mes a mes</option>
-        <option value="year" ${bookingWindow === "year" ? "selected" : ""}>Liberar agenda para o ano todo</option>
+    <section class="panel">
+      <label class="field-label">Liberação da agenda</label>
+      <select id="bookingWindow">
+        <option value="month" ${profile.bookingWindow !== "year" ? "selected" : ""}>Liberar agenda mês a mês</option>
+        <option value="year" ${profile.bookingWindow === "year" ? "selected" : ""}>Liberar agenda ano a ano</option>
       </select>
-      ${days.map(([key, label]) => {
-        const item = availability[key] || {};
-        const intervals = getDayIntervals(item).length
-          ? getDayIntervals(item)
-          : [{ start: item.start || "09:00", end: item.end || "18:00" }];
 
-        return `
-          <div class="item availability-day" data-day="${key}">
-            <strong>${label}</strong>
-            <div class="row">
-              <select class="day-enabled">
-                <option value="false" ${!item.enabled ? "selected" : ""}>Indisponivel</option>
-                <option value="true" ${item.enabled ? "selected" : ""}>Disponivel</option>
-              </select>
-              <input class="day-slot" type="number" min="10" step="5" value="${item.slot || 30}" placeholder="Intervalo em minutos">
+      <div class="availability-list">
+        ${weekKeys.map(([key, label]) => {
+          const day = availability[key] || { enabled: false, slot: 30, intervals: [{ start: "09:00", end: "18:00" }] };
+          const intervals = getDayIntervals(day).length ? getDayIntervals(day) : [{ start: "09:00", end: "18:00" }];
+
+          return `
+            <div class="availability-day">
+              <strong>${label}</strong>
+              <div class="grid-2">
+                <select id="${key}Enabled">
+                  <option value="true" ${day.enabled ? "selected" : ""}>Disponível</option>
+                  <option value="false" ${!day.enabled ? "selected" : ""}>Indisponível</option>
+                </select>
+                <input id="${key}Slot" type="number" min="5" step="5" value="${day.slot || 30}" placeholder="Intervalo dos horários">
+              </div>
+
+              <div id="${key}Intervals">
+                ${intervals.map((interval, index) => `
+                  <div class="interval-row">
+                    <input type="time" id="${key}Start${index}" value="${interval.start}">
+                    <input type="time" id="${key}End${index}" value="${interval.end}">
+                    <button class="btn danger" type="button" onclick="window.removeAvailabilityInterval('${key}', ${index})">Remover</button>
+                  </div>
+                `).join("")}
+              </div>
+
+              <button class="btn secondary full" type="button" onclick="window.addAvailabilityInterval('${key}')">Adicionar intervalo</button>
             </div>
-            <div class="intervals">
-              ${intervalRows(intervals)}
-            </div>
-            <button class="btn secondary" type="button" onclick="window.addAvailabilityInterval('${key}')">
-              Adicionar intervalo
-            </button>
-          </div>
-        `;
-      }).join("")}
-      <button class="btn" type="submit">Salvar disponibilidade</button>
-    </form>
+          `;
+        }).join("")}
+      </div>
+
+      <button id="saveAvailability" class="btn primary">${icon("save")} Salvar disponibilidade</button>
+      <div id="availabilityMessage" class="form-message"></div>
+    </section>
   `;
 
-  window.addAvailabilityInterval = dayKey => {
-    const dayBox = document.querySelector(`.availability-day[data-day="${dayKey}"] .intervals`);
+  $("saveAvailability").onclick = async () => {
+    const newAvailability = {};
 
-    dayBox.insertAdjacentHTML("beforeend", `
-      <div class="row interval-row">
-        <input class="interval-start" type="time" value="09:00">
-        <input class="interval-end" type="time" value="18:00">
-        <button class="btn danger" type="button" onclick="window.removeAvailabilityInterval(this)">Remover</button>
-      </div>
-    `);
-  };
+    weekKeys.forEach(([key]) => {
+      const current = availability[key] || {};
+      const intervalCount = Math.max(1, (current.intervals || [{ start: "09:00", end: "18:00" }]).length);
+      const intervals = [];
 
-  window.removeAvailabilityInterval = button => {
-    const row = button.closest(".interval-row");
-    const container = button.closest(".intervals");
+      for (let index = 0; index < intervalCount; index++) {
+        const start = $(`${key}Start${index}`)?.value;
+        const end = $(`${key}End${index}`)?.value;
 
-    if (container.querySelectorAll(".interval-row").length <= 1) {
-      alert("Deixe pelo menos um intervalo neste dia.");
-      return;
-    }
+        if (start && end && timeToMinutes(start) < timeToMinutes(end)) {
+          intervals.push({ start, end });
+        }
+      }
 
-    row.remove();
-  };
-
-  $("availabilityForm").onsubmit = async event => {
-    event.preventDefault();
-
-    const data = Object.fromEntries(new FormData(event.target));
-    const nextAvailability = {};
-
-    days.forEach(([key]) => {
-      const dayBox = document.querySelector(`.availability-day[data-day="${key}"]`);
-      const enabled = dayBox.querySelector(".day-enabled").value === "true";
-      const slot = Number(dayBox.querySelector(".day-slot").value || 30);
-
-      const intervals = Array.from(dayBox.querySelectorAll(".interval-row"))
-        .map(row => ({
-          start: row.querySelector(".interval-start").value,
-          end: row.querySelector(".interval-end").value
-        }))
-        .filter(interval => interval.start && interval.end && timeToMinutes(interval.start) < timeToMinutes(interval.end));
-
-      nextAvailability[key] = {
-        enabled,
-        slot,
+      newAvailability[key] = {
+        enabled: $(`${key}Enabled`).value === "true",
+        slot: Number($(`${key}Slot`).value || 30),
         intervals
       };
     });
 
-    await setDoc(userRef(user.uid), {
-      bookingWindow: data.bookingWindow,
-      availability: nextAvailability,
-      updatedAt: serverTimestamp()
-    }, { merge: true });
+    await updateDoc(doc(db, "users", currentUser.uid), {
+      availability: newAvailability,
+      bookingWindow: $("bookingWindow").value
+    });
 
-    alert("Disponibilidade salva.");
+    $("availabilityMessage").textContent = "Disponibilidade salva.";
   };
+
+  renderIcons();
 }
 
+window.addAvailabilityInterval = async key => {
+  const availability = profile.availability || defaultAvailability();
+  const day = availability[key] || { enabled: true, slot: 30, intervals: [] };
+  const intervals = Array.isArray(day.intervals) && day.intervals.length ? day.intervals : getDayIntervals(day);
+
+  intervals.push({ start: "13:00", end: "18:00" });
+
+  await updateDoc(doc(db, "users", currentUser.uid), {
+    [`availability.${key}.intervals`]: intervals
+  });
+};
+
+window.removeAvailabilityInterval = async (key, index) => {
+  const availability = profile.availability || defaultAvailability();
+  const day = availability[key] || {};
+  const intervals = Array.isArray(day.intervals) ? [...day.intervals] : getDayIntervals(day);
+
+  intervals.splice(index, 1);
+  if (!intervals.length) intervals.push({ start: "09:00", end: "18:00" });
+
+  await updateDoc(doc(db, "users", currentUser.uid), {
+    [`availability.${key}.intervals`]: intervals
+  });
+};
+
 function renderOnline() {
-  const slug = profile.slug || makeSlug(profile.businessName || user.uid);
-  const link = `${location.origin}${location.pathname}#book/${slug}`;
+  const publicUrl = `${location.origin}${location.pathname}#book/${profile.slug || currentUser.uid}`;
 
-  const cover = profile.photoURL
-    ? `<div class="profile-cover" style="background-image:url('${profile.photoURL}')"></div>`
-    : `<div class="profile-cover empty-cover">Sem imagem do estabelecimento</div>`;
+  $("view").innerHTML = `
+    <header class="page-head"><div><h1>Link online</h1><p>Personalize seu perfil público.</p></div></header>
 
-  view.innerHTML = `
-    <div class="grid two">
-      <form id="settingsForm" class="panel form">
-        <h3>Perfil publico</h3>
-        ${cover}
-        <label>
-          Imagem do estabelecimento
-          <input name="photo" type="file" accept="image/*">
-        </label>
-        <input name="businessName" value="${profile.businessName || ""}" placeholder="Nome do estabelecimento">
-        <input name="phone" value="${profile.phone || ""}" placeholder="WhatsApp">
-        <select name="publicBooking">
-          <option value="true" ${profile.publicBooking !== false ? "selected" : ""}>Agendamento ativo</option>
-          <option value="false" ${profile.publicBooking === false ? "selected" : ""}>Agendamento pausado</option>
-        </select>
-        <button class="btn" type="submit">Salvar perfil</button>
+    <section class="panel">
+      <form id="profileForm" class="form-grid">
+        <input id="businessName" value="${profile.businessName || ""}" placeholder="Nome do estabelecimento" required>
+        <input id="slug" value="${profile.slug || ""}" placeholder="Link personalizado">
+        <input id="segment" value="${profile.segment || ""}" placeholder="Segmento">
+        <input id="city" value="${profile.city || ""}" placeholder="Cidade">
+        <input id="whatsappProfile" value="${profile.whatsapp || ""}" placeholder="WhatsApp">
+        <input id="instagram" value="${profile.instagram || ""}" placeholder="Instagram">
+        <input id="address" value="${profile.address || ""}" placeholder="Endereço">
+        <input id="photo" type="file" accept="image/*">
+        ${profile.photoURL ? `<img class="profile-preview" src="${profile.photoURL}" alt="Foto do estabelecimento">` : ""}
+        <button class="btn primary" type="submit">${icon("save")} Salvar perfil</button>
       </form>
-      <div class="panel">
-        <h3>Link publico</h3>
-        <input value="${link}" readonly>
-        <p class="muted">Envie este link para clientes agendarem sem criar conta.</p>
-        <div class="actions">
-          <button class="btn" onclick="navigator.clipboard.writeText('${link}')">Copiar link</button>
-          <a class="btn secondary" target="_blank" href="${link}">Abrir</a>
-        </div>
+
+      <div class="share-box">
+        <strong>Seu link de agendamento</strong>
+        <input readonly value="${publicUrl}">
+        <a class="btn whatsapp" target="_blank" rel="noopener" href="${whatsappUrl(profile.whatsapp, `Olá! Agende seu horário pelo link: ${publicUrl}`)}">${icon("message-circle")} Divulgar no WhatsApp</a>
       </div>
-    </div>
+    </section>
   `;
 
-  $("settingsForm").onsubmit = async event => {
+  $("profileForm").onsubmit = async event => {
     event.preventDefault();
 
-    try {
-      const form = event.target;
-      const data = Object.fromEntries(new FormData(form));
-      let photoURL = profile.photoURL || "";
-      const file = form.photo.files[0];
+    const oldSlug = profile.slug;
+    const slug = makeSlug($("slug").value || $("businessName").value);
+    const photoFile = $("photo").files[0];
+    const photoURL = photoFile ? await fileToCompressedDataUrl(photoFile) : profile.photoURL || "";
 
-      if (file) {
-        photoURL = await fileToCompressedDataUrl(file);
+    const data = {
+      businessName: $("businessName").value.trim(),
+      slug,
+      segment: $("segment").value.trim(),
+      city: $("city").value.trim(),
+      whatsapp: onlyDigits($("whatsappProfile").value),
+      instagram: $("instagram").value.trim(),
+      address: $("address").value.trim(),
+      photoURL,
+      status: profile.status,
+      blocked: profile.blocked || false,
+      updatedAt: serverTimestamp()
+    };
+
+    await updateDoc(doc(db, "users", currentUser.uid), data);
+
+    await setDoc(doc(db, "publicEstablishments", slug), {
+      uid: currentUser.uid,
+      slug,
+      ...data
+    }, { merge: true });
+
+    if (oldSlug && oldSlug !== slug) {
+      try {
+        await deleteDoc(doc(db, "publicEstablishments", oldSlug));
+      } catch (error) {
+        console.warn(error);
       }
-
-      const nextSlug = makeSlug(data.businessName || profile.businessName || user.uid);
-      const slugSnap = await getDoc(doc(db, "publicEstablishments", nextSlug));
-
-      if (slugSnap.exists() && slugSnap.data().uid !== user.uid) {
-        alert("Este nome de link ja esta em uso. Altere um pouco o nome do estabelecimento.");
-        return;
-      }
-
-      await setDoc(userRef(user.uid), {
-        businessName: data.businessName,
-        phone: onlyDigits(data.phone),
-        publicBooking: data.publicBooking === "true",
-        photoURL,
-        slug: nextSlug,
-        updatedAt: serverTimestamp()
-      }, { merge: true });
-
-      await setDoc(doc(db, "publicEstablishments", nextSlug), {
-        uid: user.uid,
-        businessName: data.businessName,
-        segment: profile.segment || "",
-        city: profile.city || "",
-        photoURL,
-        publicBooking: data.publicBooking === "true",
-        updatedAt: serverTimestamp()
-      }, { merge: true });
-
-      alert("Perfil salvo com sucesso.");
-    } catch (error) {
-      alert("Erro ao salvar perfil: " + error.message);
-      console.error(error);
     }
+
+    alert("Perfil salvo.");
   };
+
+  renderIcons();
 }
 
 function renderAdmin() {
-  const establishments = users.filter(u => u.role === "establishment");
+  const active = users.filter(u => u.status === "active" && !u.blocked).length;
+  const pending = users.filter(u => u.status === "pending").length;
+  const blocked = users.filter(u => u.blocked).length;
 
-  const pending = establishments.filter(u => u.status === "pending").length;
-  const active = establishments.filter(u => u.status === "active" && !u.blocked && !isExpired(u.planExpiresAt)).length;
-  const blocked = establishments.filter(u => u.blocked).length;
-  const expired = establishments.filter(u => isExpired(u.planExpiresAt)).length;
+  $("view").innerHTML = `
+    <header class="page-head"><div><h1>Painel administrativo</h1><p>Controle estabelecimentos, planos e pendências.</p></div></header>
 
-  const month = today().slice(0, 7);
+    <section class="metrics">
+      <div class="metric"><span>Ativos</span><strong>${active}</strong></div>
+      <div class="metric"><span>Pendentes</span><strong>${pending}</strong></div>
+      <div class="metric"><span>Bloqueados</span><strong>${blocked}</strong></div>
+      <div class="metric"><span>Total</span><strong>${users.length}</strong></div>
+    </section>
 
-  const appointmentsToday = adminAppointments.filter(a => a.date === today()).length;
-  const appointmentsMonth = adminAppointments.filter(a => (a.date || "").startsWith(month)).length;
+    <section class="panel">
+      <h2>Estabelecimentos</h2>
+      <div class="list">
+        ${users.filter(u => u.role !== "admin").map(u => `
+          <article class="item admin-item">
+            <div>
+              <strong>${u.businessName || u.email}</strong>
+              <span>${u.city || ""} • ${plans[u.plan] || u.plan || ""} • ${u.status || "pending"} ${u.blocked ? "• bloqueado" : ""}</span>
+            </div>
 
-  const paidMonth = adminAppointments
-    .filter(a => (a.date || "").startsWith(month) && a.paymentStatus === "paid")
-    .reduce((s, a) => s + Number(a.price || 0), 0);
-
-  const pendingMoney = adminAppointments
-    .filter(a => a.paymentStatus !== "paid")
-    .reduce((s, a) => s + Number(a.price || 0), 0);
-
-  const bqMonthlyRevenue = establishments
-    .filter(u => u.status === "active" && !u.blocked && !isExpired(u.planExpiresAt))
-    .reduce((s, u) => s + Number(planPrices[u.plan] || 0), 0);
-
-  const planCount = {
-    monthly: establishments.filter(u => u.plan === "monthly").length,
-    quarterly: establishments.filter(u => u.plan === "quarterly").length,
-    semiannual: establishments.filter(u => u.plan === "semiannual").length,
-    annual: establishments.filter(u => u.plan === "annual").length
-  };
-
-  const ranking = establishments.map(est => {
-    const estAppointments = adminAppointments.filter(a => a.establishmentId === est.id);
-    const revenue = estAppointments
-      .filter(a => a.paymentStatus === "paid")
-      .reduce((s, a) => s + Number(a.price || 0), 0);
-
-    return { ...est, appointmentsCount: estAppointments.length, revenue };
-  }).sort((a, b) => b.appointmentsCount - a.appointmentsCount).slice(0, 8);
-
-  view.innerHTML = `
-    <div class="grid cards">
-      <div class="card"><small>Ativos</small><strong>${active}</strong></div>
-      <div class="card"><small>Pendentes</small><strong>${pending}</strong></div>
-      <div class="card"><small>Bloqueados</small><strong>${blocked}</strong></div>
-      <div class="card"><small>Vencidos</small><strong>${expired}</strong></div>
-    </div>
-    <div class="grid cards" style="margin-top:16px">
-      <div class="card"><small>Agendamentos hoje</small><strong>${appointmentsToday}</strong></div>
-      <div class="card"><small>Agendamentos no mes</small><strong>${appointmentsMonth}</strong></div>
-      <div class="card"><small>Movimentado no mes</small><strong>${money(paidMonth)}</strong></div>
-      <div class="card"><small>Pendente nos estabelecimentos</small><strong>${money(pendingMoney)}</strong></div>
-    </div>
-    <div class="grid cards" style="margin-top:16px">
-      <div class="card"><small>Receita BQ estimada</small><strong>${money(bqMonthlyRevenue)}</strong></div>
-      <div class="card"><small>Mensais</small><strong>${planCount.monthly}</strong></div>
-      <div class="card"><small>Trimestrais</small><strong>${planCount.quarterly}</strong></div>
-      <div class="card"><small>Anuais</small><strong>${planCount.annual}</strong></div>
-    </div>
-    <div class="grid two" style="margin-top:16px">
-      <div class="panel">
-        <h3>Ranking de uso</h3>
-        <div class="list">${ranking.map(adminRankingItem).join("") || empty("Nenhum dado ainda.")}</div>
-      </div>
-      <div class="panel">
-        <h3>Pendencias</h3>
-        <div class="list">
-          ${establishments
-            .filter(u => u.status === "pending" || u.blocked || isExpired(u.planExpiresAt) || u.paymentStatus !== "paid")
-            .map(adminPendingItem)
-            .join("") || empty("Nenhuma pendencia.")}
-        </div>
-      </div>
-    </div>
-    <div class="panel" style="margin-top:16px">
-      <h3>Estabelecimentos</h3>
-      <div class="list">${establishments.map(adminUserItem).join("") || empty("Nenhum estabelecimento cadastrado.")}</div>
-    </div>
-  `;
-}
-
-function adminRankingItem(est) {
-  return `
-    <article class="item">
-      <div class="item-head">
-        <strong>${est.businessName || "Sem nome"}</strong>
-        <span class="badge active">${est.appointmentsCount} agendamentos</span>
-      </div>
-      <span class="muted">${est.city || ""} - ${plans[est.plan] || "Sem plano"}</span>
-      <span>Faturamento registrado: ${money(est.revenue)}</span>
-    </article>
-  `;
-}
-
-function adminPendingItem(est) {
-  let reason = "Pendente";
-
-  if (est.blocked) reason = "Bloqueado";
-  else if (isExpired(est.planExpiresAt)) reason = "Plano vencido";
-  else if (est.paymentStatus !== "paid") reason = "Pagamento pendente";
-  else if (est.status === "pending") reason = "Aguardando aprovacao";
-
-  return `
-    <article class="item">
-      <div class="item-head">
-        <strong>${est.businessName || "Sem nome"}</strong>
-        <span class="badge pending">${reason}</span>
-      </div>
-      <span>${est.ownerName || ""} - ${est.phone || ""}</span>
-      <span>Plano: ${plans[est.plan] || "-"} - Vence: ${est.planExpiresAt || "-"}</span>
-    </article>
-  `;
-}
-
-function adminUserItem(u) {
-  return `
-    <article class="item">
-      <div class="item-head">
-        <strong>${u.businessName || "Sem nome"}</strong>
-        <span class="badge ${u.blocked ? "blocked" : u.status}">${u.blocked ? "Bloqueado" : u.status}</span>
-      </div>
-      <span>${u.ownerName || ""} - ${u.email || ""} - ${u.phone || ""}</span>
-      <span>Plano: ${plans[u.plan] || "-"} - Pagamento: ${u.paymentStatus || "-"} - Vence: ${u.planExpiresAt || "-"}</span>
-      <div class="actions">
-        <select id="plan-${u.id}">
-          ${Object.entries(plans).map(([k, v]) => `<option value="${k}" ${u.plan === k ? "selected" : ""}>${v}</option>`).join("")}
-        </select>
-        <button class="btn ok" onclick="window.approveUser('${u.id}')">Aprovar pago</button>
-        <button class="btn secondary" onclick="window.savePlan('${u.id}')">Alterar plano</button>
-        <button class="btn danger" onclick="window.blockUser('${u.id}', ${!u.blocked})">${u.blocked ? "Desbloquear" : "Bloquear"}</button>
-      </div>
-    </article>
-  `;
-}
-
-window.approveUser = async uid => {
-  const plan = $(`plan-${uid}`).value;
-
-  await setDoc(userRef(uid), {
-    status: "active",
-    blocked: false,
-    paymentStatus: "paid",
-    plan,
-    planExpiresAt: planExpiration(plan),
-    approvedAt: serverTimestamp()
-  }, { merge: true });
-};
-
-window.savePlan = async uid => {
-  const plan = $(`plan-${uid}`).value;
-
-  await setDoc(userRef(uid), {
-    plan,
-    planExpiresAt: planExpiration(plan),
-    paymentStatus: "paid"
-  }, { merge: true });
-};
-
-window.blockUser = async (uid, blocked) => {
-  await setDoc(userRef(uid), { blocked }, { merge: true });
-};
-
-async function renderPublicBooking(uid) {
-  const profileSnap = await getDoc(userRef(uid));
-  const publicProfile = profileSnap.data();
-
-  if (
-    !publicProfile ||
-    publicProfile.publicBooking === false ||
-    publicProfile.status !== "active" ||
-    publicProfile.blocked ||
-    isExpired(publicProfile.planExpiresAt)
-  ) {
-    root.innerHTML = `
-      <section class="notice">
-        <h1>Agendamento indisponivel</h1>
-        <p class="muted">Este estabelecimento nao esta recebendo agendamentos no momento.</p>
-      </section>
-    `;
-    return;
-  }
-
-  const servicesSnap = await getDocs(tenantCol(uid, "services"));
-  const publicServices = servicesSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-
-  const appointmentsSnap = await getDocs(tenantCol(uid, "appointments"));
-  const publicAppointments = appointmentsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-
-  const heroPhoto =
-    publicProfile.photoURL ||
-    "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?auto=format&fit=crop&w=1600&q=80";
-
-  root.innerHTML = `
-    <section class="public-page">
-      <header class="public-hero" style="--photo:url('${heroPhoto}')">
-        <div>
-          <h1>${publicProfile.businessName}</h1>
-          <p>${publicProfile.segment || "Agendamento online"} · ${publicProfile.city || ""}</p>
-        </div>
-      </header>
-      <div class="public-content">
-        <form id="publicForm" class="panel form">
-          <h3>Solicitar horario</h3>
-          <input id="publicClientPhone" name="clientPhone" placeholder="Seu WhatsApp" required>
-          <input id="publicClientName" name="clientName" placeholder="Seu nome" required>
-          <select id="publicService" name="serviceId" required>
-            <option value="">Escolha um servico</option>
-            ${publicServices.map(s => `
-              <option value="${s.id}">
-                ${s.name} - ${money(s.price)} - ${s.duration} min
-              </option>
-            `).join("")}
-          </select>
-          <div class="row">
-            <input
-              id="publicDate"
-              name="date"
-              type="date"
-              min="${today()}"
-              max="${publicProfile.bookingWindow === "year" ? lastDayOfCurrentYear() : lastDayOfCurrentMonth()}"
-              required
-            >
-            <select id="publicTime" name="time" required>
-              <option value="">Escolha servico e data</option>
-            </select>
-          </div>
-          <select name="paymentMethod">
-            ${Object.entries(paymentMethods).map(([k, v]) => `<option value="${k}">${v}</option>`).join("")}
-          </select>
-          <textarea name="notes" placeholder="Observacoes"></textarea>
-          <button class="btn" type="submit">
-            <i data-lucide="calendar-plus"></i>
-            Solicitar agendamento
-          </button>
-        </form>
+            <div class="admin-actions">
+              <select id="plan-${u.id}">
+                ${Object.entries(plans).map(([value, label]) => `<option value="${value}" ${u.plan === value ? "selected" : ""}>${label}</option>`).join("")}
+              </select>
+              <button class="btn secondary" onclick="window.savePlan('${u.id}')">Salvar plano</button>
+              <button class="btn primary" onclick="window.approveUser('${u.id}')">Aprovar</button>
+              <button class="btn danger" onclick="window.blockUser('${u.id}', ${!u.blocked})">${u.blocked ? "Desbloquear" : "Bloquear"}</button>
+            </div>
+          </article>
+        `).join("") || empty("Sem estabelecimentos", "Novos cadastros aparecerão aqui.")}
       </div>
     </section>
   `;
+  renderIcons();
+}
 
-  const savedClient = JSON.parse(localStorage.getItem("bqAgendaClient") || "{}");
-
-  if (savedClient.phone) $("publicClientPhone").value = savedClient.phone;
-  if (savedClient.name) $("publicClientName").value = savedClient.name;
-
-  let clientLookupTimer = null;
-
-  async function lookupClientByPhone() {
-    const phoneKey = onlyDigits($("publicClientPhone").value);
-
-    if (phoneKey.length < 10) return;
-
-    try {
-      const clientSnap = await getDoc(tenantDoc(uid, "clients", phoneKey));
-
-      if (clientSnap.exists()) {
-        const client = clientSnap.data();
-
-        if (client.name) {
-          $("publicClientName").value = client.name;
-        }
-
-        localStorage.setItem("bqAgendaClient", JSON.stringify({
-          name: client.name || $("publicClientName").value,
-          phone: phoneKey
-        }));
-      }
-    } catch (error) {
-      console.warn("Nao foi possivel buscar cliente:", error);
-    }
-  }
-
-  $("publicClientPhone").addEventListener("input", () => {
-    clearTimeout(clientLookupTimer);
-    clientLookupTimer = setTimeout(lookupClientByPhone, 500);
-  });
-
-  $("publicClientPhone").addEventListener("blur", lookupClientByPhone);
-
-  if ($("publicClientPhone").value) {
-    lookupClientByPhone();
-  }
-
-  function refreshPublicTimes() {
-    const service = publicServices.find(s => s.id === $("publicService").value);
-
-    const slots = getAvailableSlots({
-      date: $("publicDate").value,
-      service,
-      availability: publicProfile.availability || {},
-      appointments: publicAppointments,
-      bookingWindow: publicProfile.bookingWindow || "month"
-    });
-
-    $("publicTime").innerHTML = slots.length
-      ? `<option value="">Escolha um horario</option>${slots.map(time => `<option value="${time}">${time}</option>`).join("")}`
-      : `<option value="">Nenhum horario disponivel</option>`;
-  }
-
-  $("publicService").onchange = refreshPublicTimes;
-  $("publicDate").onchange = refreshPublicTimes;
-
-  $("publicForm").onsubmit = async event => {
-    event.preventDefault();
-
-    const data = Object.fromEntries(new FormData(event.target));
-    const phoneKey = onlyDigits(data.clientPhone);
-    const service = publicServices.find(s => s.id === data.serviceId);
-
-    localStorage.setItem("bqAgendaClient", JSON.stringify({
-      name: data.clientName,
-      phone: phoneKey
-    }));
-
-    const slots = getAvailableSlots({
-      date: data.date,
-      service,
-      availability: publicProfile.availability || {},
-      appointments: publicAppointments,
-      bookingWindow: publicProfile.bookingWindow || "month"
-    });
-
-    if (!slots.includes(data.time)) {
-      alert("Este horario acabou de ficar indisponivel. Escolha outro horario.");
-      return;
-    }
-
-    await setDoc(tenantDoc(uid, "clients", phoneKey), {
-      id: phoneKey,
-      phoneKey,
-      name: data.clientName,
-      phone: phoneKey,
-      lastBookingAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-      createdBy: "public-booking"
+window.approveUser = async id => {
+  const user = users.find(u => u.id === id);
+  await updateDoc(doc(db, "users", id), { status: "active", blocked: false });
+  if (user?.slug) {
+    await setDoc(doc(db, "publicEstablishments", user.slug), {
+      uid: id,
+      slug: user.slug,
+      businessName: user.businessName || "",
+      segment: user.segment || "",
+      city: user.city || "",
+      whatsapp: user.whatsapp || "",
+      photoURL: user.photoURL || "",
+      status: "active",
+      blocked: false
     }, { merge: true });
+  }
+};
 
-    await addDoc(tenantCol(uid, "appointments"), {
-      clientId: phoneKey,
-      clientName: data.clientName,
-      clientPhone: phoneKey,
-      serviceId: data.serviceId,
-      serviceName: service?.name || "",
-      price: Number(service?.price || 0),
-      duration: Number(service?.duration || 30),
-      date: data.date,
-      time: data.time,
-      startMinutes: timeToMinutes(data.time),
-      endMinutes: timeToMinutes(data.time) + Number(service?.duration || 30),
-      status: "pending",
-      paymentMethod: data.paymentMethod,
-      paymentStatus: "pending",
-      notes: data.notes,
-      source: "online",
-      createdAt: serverTimestamp()
-    });
+window.savePlan = async id => {
+  const plan = $(`plan-${id}`).value;
+  await updateDoc(doc(db, "users", id), {
+    plan,
+    planLabel: plans[plan],
+    planPrice: planPrices[plan] || 0
+  });
+};
 
-    const establishmentPhone = onlyDigits(publicProfile.phone);
+window.blockUser = async (id, blocked) => {
+  const user = users.find(u => u.id === id);
+  await updateDoc(doc(db, "users", id), { blocked });
+  if (user?.slug) {
+    await setDoc(doc(db, "publicEstablishments", user.slug), { blocked }, { merge: true });
+  }
+};
 
-    const confirmationText = [
-      `Ola, ${publicProfile.businessName}!`,
-      ``,
-      `Acabei de solicitar um agendamento pelo link online.`,
-      ``,
-      `Cliente: ${data.clientName}`,
-      `WhatsApp: ${phoneKey}`,
-      `Servico: ${service?.name || ""}`,
-      `Data: ${formatDateBR(data.date)}`,
-      `Horario: ${data.time}`,
-      `Duracao: ${Number(service?.duration || 30)} minutos`,
-      `Valor: ${money(service?.price || 0)}`,
-      ``,
-      `Por favor, confirme meu horario.`
-    ].join("\n");
+async function renderPublicBooking() {
+  root.innerHTML = `<section class="splash"><div><strong>BQ Agenda</strong><span>Carregando agenda...</span></div></section>`;
 
-    const waLink = establishmentPhone
-      ? whatsappUrl(establishmentPhone, confirmationText)
-      : "";
+  try {
+    const uid = await resolveBookingUid();
+    if (!uid) throw new Error("Estabelecimento não encontrado.");
 
-    event.target.innerHTML = `
-      <div class="empty">
-        <h2>Solicitacao enviada</h2>
-        <p>Agora envie a confirmacao pelo WhatsApp para o estabelecimento.</p>
-        ${
-          waLink
-            ? `<a class="btn" target="_blank" href="${waLink}">Enviar confirmacao no WhatsApp</a>`
-            : `<p class="muted">O estabelecimento nao cadastrou WhatsApp.</p>`
-        }
-      </div>
+    const profileSnap = await getDoc(doc(db, "users", uid));
+    if (!profileSnap.exists()) throw new Error("Estabelecimento não encontrado.");
+
+    const publicProfile = { id: uid, ...profileSnap.data() };
+    if (publicProfile.status !== "active" || publicProfile.blocked) throw new Error("Agenda indisponível no momento.");
+
+    const serviceSnap = await getDocs(collection(db, "users", uid, "services"));
+    const publicServices = serviceSnap.docs.map(d => ({ id: d.id, ...d.data() })).filter(s => s.active !== false);
+
+    const appointmentSnap = await getDocs(collection(db, "users", uid, "appointments"));
+    const publicAppointments = appointmentSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+    const savedPhone = localStorage.getItem(`bqClientPhone:${uid}`) || "";
+    const savedName = localStorage.getItem(`bqClientName:${uid}`) || "";
+
+    root.innerHTML = `
+      <section class="booking-page">
+        <header class="booking-hero">
+          ${publicProfile.photoURL ? `<img src="${publicProfile.photoURL}" alt="${publicProfile.businessName}">` : ""}
+          <div>
+            <strong>${publicProfile.businessName}</strong>
+            <span>${publicProfile.segment || ""} ${publicProfile.city ? `• ${publicProfile.city}` : ""}</span>
+          </div>
+        </header>
+
+        <form id="bookingForm" class="booking-card">
+          <h1>Solicitar horário</h1>
+          <input id="bookPhone" value="${savedPhone}" placeholder="Seu WhatsApp" required>
+          <input id="bookName" value="${savedName}" placeholder="Seu nome" required>
+          <select id="bookService" required>
+            <option value="">Escolha um serviço</option>
+            ${publicServices.map(s => `<option value="${s.id}">${s.name} - ${money(s.price)} - ${s.duration} min</option>`).join("")}
+          </select>
+          <div class="grid-2">
+            <input id="bookDate" type="date" min="${today()}" required>
+            <select id="bookTime" required><option value="">Escolha um horário</option></select>
+          </div>
+          <select id="bookPayment">${paymentMethods.map(p => `<option>${p}</option>`).join("")}</select>
+          <textarea id="bookNotes" placeholder="Observações"></textarea>
+          <button class="btn primary" type="submit">${icon("calendar-plus")} Solicitar agendamento</button>
+          <div id="bookingMessage" class="form-message"></div>
+        </form>
+      </section>
     `;
 
-    if (waLink) {
-      window.open(waLink, "_blank");
-    }
-  };
+    const updateSlots = () => {
+      const service = publicServices.find(s => s.id === $("bookService").value);
+      const slots = getAvailableSlots({
+        date: $("bookDate").value,
+        service,
+        availability: publicProfile.availability || defaultAvailability(),
+        appointments: publicAppointments,
+        bookingWindow: publicProfile.bookingWindow || "month"
+      });
 
-  icons();
+      $("bookTime").innerHTML = `<option value="">Escolha um horário</option>${slots.map(t => `<option>${t}</option>`).join("")}`;
+    };
+
+    $("bookService").onchange = updateSlots;
+    $("bookDate").onchange = updateSlots;
+
+    $("bookPhone").onblur = async () => {
+      const phoneKey = onlyDigits($("bookPhone").value);
+      if (!phoneKey) return;
+
+      try {
+        const clientSnap = await getDoc(doc(db, "users", uid, "clients", phoneKey));
+        if (clientSnap.exists() && clientSnap.data().name) {
+          $("bookName").value = clientSnap.data().name;
+        }
+      } catch (error) {
+        console.warn(error);
+      }
+    };
+
+    $("bookingForm").onsubmit = async event => {
+      event.preventDefault();
+
+      const service = publicServices.find(s => s.id === $("bookService").value);
+      const phoneKey = onlyDigits($("bookPhone").value);
+      const time = $("bookTime").value;
+      const date = $("bookDate").value;
+      const startMinutes = timeToMinutes(time);
+      const duration = Number(service?.duration || 30);
+      const endMinutes = startMinutes + duration;
+
+      const stillAvailable = getAvailableSlots({
+        date,
+        service,
+        availability: publicProfile.availability || defaultAvailability(),
+        appointments: publicAppointments,
+        bookingWindow: publicProfile.bookingWindow || "month"
+      }).includes(time);
+
+      if (!stillAvailable) {
+        $("bookingMessage").textContent = "Esse horário não está mais disponível.";
+        return;
+      }
+
+      const clientName = $("bookName").value.trim();
+
+      await setDoc(doc(db, "users", uid, "clients", phoneKey), {
+        phoneKey,
+        phone: phoneKey,
+        name: clientName,
+        updatedAt: serverTimestamp(),
+        createdAt: serverTimestamp()
+      }, { merge: true });
+
+      await addDoc(collection(db, "users", uid, "appointments"), {
+        clientName,
+        phone: phoneKey,
+        phoneKey,
+        serviceId: service.id,
+        serviceName: service.name,
+        servicePrice: Number(service.price || 0),
+        duration,
+        startMinutes,
+        endMinutes,
+        date,
+        time,
+        paymentMethod: $("bookPayment").value,
+        notes: $("bookNotes").value.trim(),
+        source: "online",
+        status: "pending",
+        createdAt: serverTimestamp()
+      });
+
+      localStorage.setItem(`bqClientPhone:${uid}`, phoneKey);
+      localStorage.setItem(`bqClientName:${uid}`, clientName);
+
+      const text = [
+        `Olá, ${publicProfile.businessName}!`,
+        "",
+        "Acabei de solicitar um agendamento pelo link online.",
+        "",
+        `Cliente: ${clientName}`,
+        `WhatsApp: ${phoneKey}`,
+        `Serviço: ${service.name}`,
+        `Data: ${formatDateBR(date)}`,
+        `Horário: ${time}`,
+        `Duração: ${duration} minutos`,
+        `Valor: ${money(service.price || 0)}`,
+        `Pagamento: ${$("bookPayment").value}`,
+        "",
+        "Por favor, confirme meu horário."
+      ].join("\n");
+
+      $("bookingMessage").innerHTML = `Agendamento solicitado. <a target="_blank" rel="noopener" href="${whatsappUrl(publicProfile.whatsapp, text)}">Enviar confirmação pelo WhatsApp</a>`;
+      window.open(whatsappUrl(publicProfile.whatsapp, text), "_blank");
+      $("bookingForm").reset();
+    };
+
+    renderIcons();
+  } catch (error) {
+    root.innerHTML = `<section class="splash"><div><strong>Erro ao carregar</strong><span>${error.message}</span></div></section>`;
+  }
 }
 
-function subscribeEstablishment() {
-  onSnapshot(userRef(user.uid), snap => {
-    profile = snap.data();
-    renderShell();
-  });
+async function resolveBookingUid() {
+  const hash = decodeURIComponent(location.hash || "");
 
-  onSnapshot(col("clients"), snap => {
-    clients = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    renderShell();
-  });
+  if (hash.includes("?pro=")) {
+    return new URLSearchParams(hash.split("?")[1]).get("pro");
+  }
 
-  onSnapshot(col("services"), snap => {
-    services = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    renderShell();
-  });
-
-  onSnapshot(col("appointments"), snap => {
-    appointments = snap.docs
-      .map(d => ({ id: d.id, ...d.data() }))
-      .sort((a, b) => `${a.date} ${a.time}`.localeCompare(`${b.date} ${b.time}`));
-
-    renderShell();
-  });
-
-  onSnapshot(col("transactions"), snap => {
-    transactions = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    renderShell();
-  });
-}
-
-function subscribeAdmin() {
-  onSnapshot(collection(db, "users"), snap => {
-    users = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    renderShell();
-  });
-
-  onSnapshot(collectionGroup(db, "appointments"), snap => {
-    adminAppointments = snap.docs.map(d => ({
-      id: d.id,
-      establishmentId: d.ref.path.split("/")[1],
-      ...d.data()
-    }));
-
-    renderShell();
-  });
-
-  onSnapshot(collectionGroup(db, "transactions"), snap => {
-    adminTransactions = snap.docs.map(d => ({
-      id: d.id,
-      establishmentId: d.ref.path.split("/")[1],
-      ...d.data()
-    }));
-
-    renderShell();
-  });
-}
-
-function bookingSlugFromHash() {
-  if (!location.hash.startsWith("#book/")) return "";
-  return location.hash.replace("#book/", "").split("?")[0];
-}
-
-async function getUidFromBookingHash() {
-  const oldUid = new URLSearchParams(location.hash.split("?")[1] || "").get("pro");
-
-  if (oldUid) return oldUid;
-
-  const slug = bookingSlugFromHash();
-
-  if (!slug) return "";
+  const slug = hash.replace("#book/", "").replace("#book", "").replace("/", "").trim();
+  if (!slug) return null;
 
   const publicSnap = await getDoc(doc(db, "publicEstablishments", slug));
+  if (publicSnap.exists()) return publicSnap.data().uid;
 
-  return publicSnap.exists() ? publicSnap.data().uid : "";
+  return slug;
 }
 
-function renderFatalError(error) {
-  console.error(error);
+function subscribeEstablishment(uid) {
+  clearSubscriptions();
 
+  unsubscribers.push(onSnapshot(doc(db, "users", uid), snap => {
+    profile = { id: uid, ...snap.data() };
+    renderShell();
+  }));
+
+  unsubscribers.push(onSnapshot(query(tenantCol(uid, "clients")), snap => {
+    clients = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    if (profile) renderView();
+  }));
+
+  unsubscribers.push(onSnapshot(query(tenantCol(uid, "services")), snap => {
+    services = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    if (profile) renderView();
+  }));
+
+  unsubscribers.push(onSnapshot(query(tenantCol(uid, "appointments")), snap => {
+    appointments = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    if (profile) renderView();
+  }));
+
+  unsubscribers.push(onSnapshot(query(tenantCol(uid, "transactions")), snap => {
+    transactions = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    if (profile) renderView();
+  }));
+}
+
+function subscribeAdmin(uid) {
+  clearSubscriptions();
+
+  unsubscribers.push(onSnapshot(doc(db, "users", uid), snap => {
+    profile = { id: uid, ...snap.data() };
+    activeTab = "admin";
+    renderShell();
+  }));
+
+  unsubscribers.push(onSnapshot(collection(db, "users"), snap => {
+    users = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    if (profile) renderView();
+  }));
+}
+
+function renderBlockedOrPending() {
   root.innerHTML = `
-    <section class="notice">
-      <h1>Erro ao carregar</h1>
-      <p class="muted">${error.message || "Nao foi possivel abrir esta pagina."}</p>
-      <button class="btn secondary" onclick="location.reload()">Tentar novamente</button>
+    <section class="status-page">
+      <div class="status-card">
+        <img src="logo.png" alt="BQ Agenda">
+        <h1>${profile?.blocked ? "Conta bloqueada" : "Cadastro em análise"}</h1>
+        <p>${profile?.blocked ? "Entre em contato com a BQ para regularizar seu acesso." : "Seu cadastro foi recebido. A BQ entrará em contato para aprovação mediante pagamento."}</p>
+        <a class="btn whatsapp" target="_blank" rel="noopener" href="${whatsappUrl(bqWhatsapp, "Olá, BQ Agenda! Quero falar sobre meu cadastro.")}">${icon("message-circle")} Falar com a BQ</a>
+        <button class="btn secondary" onclick="window.logoutNow()">Sair</button>
+      </div>
     </section>
   `;
+  renderIcons();
 }
 
-async function handleAuthState(currentUser) {
-  const bookingUid = await getUidFromBookingHash();
+window.logoutNow = () => signOut(auth);
+
+async function handleAuthState(user) {
+  currentUser = user;
+  clearSubscriptions();
 
   if (location.hash.startsWith("#book")) {
-    if (bookingUid) {
-      await renderPublicBooking(bookingUid);
-      return;
-    }
-
-    root.innerHTML = `
-      <section class="notice">
-        <h1>Link nao encontrado</h1>
-        <p class="muted">Confira se o link de agendamento esta correto.</p>
-      </section>
-    `;
+    await renderPublicBooking();
     return;
   }
-
-  user = currentUser;
 
   if (!user) {
     renderAuth();
     return;
   }
 
-  const profileSnap = await getDoc(userRef(user.uid));
-  profile = profileSnap.data();
+  root.innerHTML = `<section class="splash"><div><strong>BQ Agenda</strong><span>Carregando seu painel...</span></div></section>`;
 
-  if (!profile) {
-    renderNotice("Cadastro incompleto", "Entre em contato com a BQ para configurar sua conta.");
+  const snap = await getDoc(doc(db, "users", user.uid));
+
+  if (!snap.exists()) {
+    await signOut(auth);
+    renderAuth();
     return;
   }
+
+  profile = { id: user.uid, ...snap.data() };
 
   if (profile.role === "admin") {
-    tab = "admin";
-    subscribeAdmin();
-    renderShell();
+    subscribeAdmin(user.uid);
     return;
   }
 
-  if (profile.status === "pending") {
-    renderNotice("Cadastro enviado para analise", "A equipe BQ entrara em contato para finalizar o pagamento e liberar seu acesso.");
+  if (profile.status !== "active" || profile.blocked) {
+    renderBlockedOrPending();
     return;
   }
 
-  if (profile.blocked) {
-    renderNotice("Acesso bloqueado", "Entre em contato com a BQ para regularizar seu acesso.");
-    return;
-  }
-
-  if (profile.paymentStatus !== "paid") {
-    renderNotice("Pagamento pendente", "Seu acesso ainda nao foi liberado pela BQ.");
-    return;
-  }
-
-  if (isExpired(profile.planExpiresAt)) {
-    renderNotice("Plano vencido", "Entre em contato com a BQ para renovar seu plano.");
-    return;
-  }
-
-  if (!canAccessApp()) return;
-
-  subscribeEstablishment();
-  renderShell();
+  subscribeEstablishment(user.uid);
 }
 
-onAuthStateChanged(auth, currentUser => {
-  handleAuthState(currentUser).catch(renderFatalError);
+function renderFatalError(error) {
+  root.innerHTML = `<section class="splash"><div><strong>Erro ao carregar</strong><span>${error.message}</span></div></section>`;
+}
+
+window.addEventListener("hashchange", () => {
+  handleAuthState(auth.currentUser).catch(renderFatalError);
+});
+
+onAuthStateChanged(auth, user => {
+  handleAuthState(user).catch(renderFatalError);
 });

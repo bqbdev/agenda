@@ -12,11 +12,11 @@
   <meta property="og:image" content="logo.png">
 
   <link rel="icon" href="logo.png">
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="styles.css?v=31">
   <script src="https://unpkg.com/lucide@latest"></script>
 
   <style>
-    .preload-home {
+    .landing {
       min-height: 100vh;
       display: grid;
       grid-template-columns: minmax(0, 1.05fr) minmax(360px, 0.75fr);
@@ -31,7 +31,7 @@
       color: #fff;
     }
 
-    .preload-brand {
+    .landing-logo {
       width: 170px;
       max-width: 70vw;
       height: auto;
@@ -39,7 +39,7 @@
       object-fit: contain;
     }
 
-    .preload-copy h1 {
+    .landing-copy h1 {
       max-width: 760px;
       margin: 0;
       font-size: clamp(42px, 6vw, 78px);
@@ -47,7 +47,7 @@
       letter-spacing: 0;
     }
 
-    .preload-copy p {
+    .landing-copy p {
       max-width: 620px;
       margin: 24px 0 0;
       font-size: 20px;
@@ -55,7 +55,7 @@
       color: rgba(255, 255, 255, 0.86);
     }
 
-    .preload-benefits {
+    .landing-benefits {
       display: grid;
       grid-template-columns: repeat(3, minmax(150px, 1fr));
       gap: 14px;
@@ -63,7 +63,7 @@
       margin-top: 36px;
     }
 
-    .preload-benefit {
+    .landing-benefit {
       min-height: 112px;
       padding: 18px;
       border-radius: 8px;
@@ -72,20 +72,20 @@
       backdrop-filter: blur(10px);
     }
 
-    .preload-benefit strong {
+    .landing-benefit strong {
       display: block;
       margin-bottom: 8px;
       font-size: 16px;
     }
 
-    .preload-benefit span {
+    .landing-benefit span {
       display: block;
       font-size: 14px;
       line-height: 1.35;
       color: rgba(255, 255, 255, 0.8);
     }
 
-    .preload-panel {
+    .landing-panel {
       width: 100%;
       max-width: 520px;
       justify-self: end;
@@ -96,36 +96,36 @@
       box-shadow: 0 24px 80px rgba(0, 0, 0, 0.24);
     }
 
-    .preload-panel h2 {
+    .landing-panel h2 {
       margin: 0 0 8px;
       font-size: 28px;
       line-height: 1.15;
     }
 
-    .preload-panel > p {
+    .landing-panel > p {
       margin: 0 0 22px;
       color: #5d6b82;
       line-height: 1.45;
     }
 
-    .preload-plans {
+    .landing-plans {
       display: grid;
       gap: 14px;
     }
 
-    .preload-plan {
+    .landing-plan {
       padding: 18px;
       border: 1px solid #dce4ef;
       border-radius: 8px;
       background: #fff;
     }
 
-    .preload-plan.featured {
+    .landing-plan.featured {
       border-color: #118577;
       background: #f1fbf8;
     }
 
-    .preload-plan-header {
+    .landing-plan-header {
       display: flex;
       align-items: flex-start;
       justify-content: space-between;
@@ -133,13 +133,13 @@
       margin-bottom: 14px;
     }
 
-    .preload-plan-header span {
+    .landing-plan-header span {
       display: block;
       font-size: 14px;
       color: #5d6b82;
     }
 
-    .preload-plan-header strong {
+    .landing-plan-header strong {
       display: block;
       font-size: 30px;
       line-height: 1;
@@ -147,12 +147,12 @@
       white-space: nowrap;
     }
 
-    .preload-plan h3 {
+    .landing-plan h3 {
       margin: 0 0 12px;
       font-size: 18px;
     }
 
-    .preload-plan ul {
+    .landing-plan ul {
       margin: 0;
       padding: 0;
       list-style: none;
@@ -160,7 +160,7 @@
       gap: 9px;
     }
 
-    .preload-plan li {
+    .landing-plan li {
       display: flex;
       gap: 8px;
       align-items: flex-start;
@@ -169,45 +169,41 @@
       color: #26354d;
     }
 
-    .preload-plan li::before {
+    .landing-plan li::before {
       content: "✓";
       color: #118577;
       font-weight: 800;
     }
 
-    .preload-actions {
+    .landing-actions {
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 12px;
       margin-top: 18px;
     }
 
-    .preload-button {
-      display: inline-flex;
+    .landing-button {
       min-height: 46px;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      border-radius: 8px;
       border: 0;
+      border-radius: 8px;
       background: #118577;
       color: #fff;
       font-weight: 800;
-      text-decoration: none;
+      cursor: pointer;
     }
 
-    .preload-button.secondary {
+    .landing-button.secondary {
       background: #edf2f7;
       color: #071426;
     }
 
-    .preload-button.whatsapp {
+    .landing-button.whatsapp {
       grid-column: 1 / -1;
       background: #25d366;
       color: #062b16;
     }
 
-    .preload-note {
+    .landing-note {
       margin-top: 16px;
       font-size: 13px;
       color: #6b778c;
@@ -215,49 +211,49 @@
     }
 
     @media (max-width: 980px) {
-      .preload-home {
+      .landing {
         grid-template-columns: 1fr;
         gap: 32px;
         padding: 32px 22px;
       }
 
-      .preload-panel {
+      .landing-panel {
         justify-self: stretch;
         max-width: none;
       }
 
-      .preload-benefits {
+      .landing-benefits {
         grid-template-columns: 1fr;
       }
     }
 
     @media (max-width: 560px) {
-      .preload-home {
+      .landing {
         padding: 24px 16px;
       }
 
-      .preload-brand {
+      .landing-logo {
         width: 138px;
         margin-bottom: 32px;
       }
 
-      .preload-copy h1 {
+      .landing-copy h1 {
         font-size: 42px;
       }
 
-      .preload-copy p {
+      .landing-copy p {
         font-size: 17px;
       }
 
-      .preload-panel {
+      .landing-panel {
         padding: 20px;
       }
 
-      .preload-actions {
+      .landing-actions {
         grid-template-columns: 1fr;
       }
 
-      .preload-plan-header {
+      .landing-plan-header {
         display: grid;
       }
     }
@@ -266,9 +262,9 @@
 
 <body>
   <main id="root">
-    <section class="preload-home">
-      <div class="preload-copy">
-        <img src="logo.png" alt="BQ Agenda" class="preload-brand">
+    <section class="landing">
+      <div class="landing-copy">
+        <img src="logo.png" alt="BQ Agenda" class="landing-logo">
 
         <h1>Agenda online para negócios que vivem de horário.</h1>
 
@@ -277,31 +273,31 @@
           e controle seus ganhos em uma plataforma simples, web e pronta para usar.
         </p>
 
-        <div class="preload-benefits">
-          <div class="preload-benefit">
+        <div class="landing-benefits">
+          <div class="landing-benefit">
             <strong>Agenda online</strong>
             <span>Seu cliente escolhe serviço, data e horário pelo link público.</span>
           </div>
 
-          <div class="preload-benefit">
+          <div class="landing-benefit">
             <strong>Confirmação rápida</strong>
             <span>O cliente envia os dados do agendamento direto para o WhatsApp do estabelecimento.</span>
           </div>
 
-          <div class="preload-benefit">
+          <div class="landing-benefit">
             <strong>Gestão completa</strong>
             <span>Controle clientes, serviços, pagamentos, agenda e financeiro.</span>
           </div>
         </div>
       </div>
 
-      <aside class="preload-panel">
+      <aside class="landing-panel">
         <h2>Escolha seu plano</h2>
         <p>Cadastre seu estabelecimento e aguarde a aprovação para começar a usar.</p>
 
-        <div class="preload-plans">
-          <article class="preload-plan featured">
-            <div class="preload-plan-header">
+        <div class="landing-plans">
+          <article class="landing-plan featured">
+            <div class="landing-plan-header">
               <div>
                 <span>Plano Mensal</span>
                 <h3>BQ Agenda</h3>
@@ -316,8 +312,8 @@
             </ul>
           </article>
 
-          <article class="preload-plan">
-            <div class="preload-plan-header">
+          <article class="landing-plan">
+            <div class="landing-plan-header">
               <div>
                 <span>Plano Trimestral</span>
                 <h3>BQ Agenda</h3>
@@ -335,32 +331,52 @@
           </article>
         </div>
 
-        <div class="preload-actions">
-          <a href="#register" class="preload-button">
+        <div class="landing-actions">
+          <button class="landing-button" type="button" onclick="loadApp('#register')">
             Cadastrar negócio
-          </a>
+          </button>
 
-          <a href="#login" class="preload-button secondary">
+          <button class="landing-button secondary" type="button" onclick="loadApp('#login')">
             Entrar
-          </a>
+          </button>
 
-          <a
-            class="preload-button whatsapp"
-            target="_blank"
-            rel="noopener"
-            href="https://wa.me/5511999999999?text=Ol%C3%A1%2C%20BQ%20Agenda%21%20Tenho%20interesse%20em%20cadastrar%20meu%20estabelecimento."
-          >
+          <button class="landing-button whatsapp" type="button" onclick="openBQWhatsApp()">
             Falar com a BQ pelo WhatsApp
-          </a>
+          </button>
         </div>
 
-        <div class="preload-note">
+        <div class="landing-note">
           Depois do cadastro, você também poderá enviar a confirmação pelo WhatsApp.
         </div>
       </aside>
     </section>
   </main>
 
-  <script type="module" src="app.js?v=10"></script>
+  <script>
+    const BQ_WHATSAPP = "5511996785799";
+
+    function openBQWhatsApp() {
+      const message = "Olá, BQ Agenda! Tenho interesse em cadastrar meu estabelecimento.";
+      window.open(`https://wa.me/${BQ_WHATSAPP}?text=${encodeURIComponent(message)}`, "_blank");
+    }
+
+    function loadApp(hash) {
+      window.location.hash = hash;
+
+      if (document.getElementById("appScript")) {
+        return;
+      }
+
+      const script = document.createElement("script");
+      script.id = "appScript";
+      script.type = "module";
+      script.src = "app.js?v=31";
+      document.body.appendChild(script);
+    }
+
+    if (window.location.hash && window.location.hash !== "#") {
+      loadApp(window.location.hash);
+    }
+  </script>
 </body>
 </html>

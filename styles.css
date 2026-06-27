@@ -1,16 +1,18 @@
 :root {
-  --bg: #f4f6f8;
+  --bg: #f5f7fb;
   --panel: #ffffff;
-  --text: #1f2937;
-  --muted: #6b7280;
-  --line: #e5e7eb;
+  --text: #172033;
+  --muted: #687387;
+  --line: #e4e8f0;
   --primary: #0f766e;
   --primary-dark: #115e59;
+  --dark: #101827;
   --danger: #dc2626;
   --ok: #16a34a;
   --warn: #f59e0b;
-  --dark: #111827;
+  --info: #2563eb;
   --radius: 8px;
+  --shadow: 0 18px 45px rgba(16, 24, 39, .10);
 }
 
 * { box-sizing: border-box; }
@@ -36,31 +38,118 @@ a {
   text-decoration: none;
 }
 
-.auth {
+img {
+  max-width: 100%;
+  display: block;
+}
+
+.splash {
   min-height: 100vh;
   display: grid;
   place-items: center;
-  padding: 24px;
+  background: var(--dark);
+  color: white;
+}
+
+.splash div {
+  display: grid;
+  gap: 8px;
+  text-align: center;
+}
+
+.splash strong {
+  font-size: 32px;
+}
+
+.splash span {
+  color: #cbd5e1;
+}
+
+.auth-page {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 1.1fr .9fr;
   background:
-    linear-gradient(rgba(15,118,110,.76), rgba(17,24,39,.68)),
-    url("https://images.unsplash.com/photo-1556740758-90de374c12ad?auto=format&fit=crop&w=1600&q=80") center/cover;
+    linear-gradient(115deg, rgba(16,24,39,.92), rgba(15,118,110,.78)),
+    url("https://images.unsplash.com/photo-1556761175-b413da4baf72?auto=format&fit=crop&w=1800&q=80") center/cover;
+}
+
+.auth-hero {
+  color: white;
+  padding: 56px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.auth-brand {
+  font-size: 24px;
+  font-weight: 800;
+}
+
+.auth-copy {
+  max-width: 640px;
+}
+
+.auth-copy h1 {
+  margin: 0 0 16px;
+  font-size: clamp(36px, 5vw, 68px);
+  line-height: 1;
+  letter-spacing: 0;
+}
+
+.auth-copy p {
+  margin: 0;
+  color: #dbeafe;
+  font-size: 18px;
+  line-height: 1.6;
+}
+
+.auth-points {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 32px;
+}
+
+.auth-point {
+  border: 1px solid rgba(255,255,255,.18);
+  background: rgba(255,255,255,.08);
+  border-radius: var(--radius);
+  padding: 14px;
+}
+
+.auth-point strong {
+  display: block;
+  margin-bottom: 6px;
+}
+
+.auth-point span {
+  color: #d1d5db;
+  font-size: 14px;
+}
+
+.auth-panel-wrap {
+  display: grid;
+  place-items: center;
+  padding: 28px;
 }
 
 .auth-box {
-  width: min(520px, 100%);
+  width: min(540px, 100%);
   background: white;
   border-radius: var(--radius);
   padding: 26px;
-  box-shadow: 0 24px 70px rgba(0,0,0,.22);
+  box-shadow: var(--shadow);
 }
 
-.auth-box h1 {
-  margin: 0 0 8px;
-  font-size: 30px;
+.auth-box h2 {
+  margin: 0 0 6px;
+  font-size: 28px;
 }
 
 .auth-box p {
-  margin: 0 0 20px;
+  margin: 0 0 18px;
   color: var(--muted);
 }
 
@@ -72,9 +161,10 @@ a {
 
 .tabs button {
   flex: 1;
-  min-height: 40px;
+  min-height: 42px;
   border-radius: var(--radius);
-  background: #e5e7eb;
+  background: #eef2f7;
+  color: var(--text);
 }
 
 .tabs button.active {
@@ -85,7 +175,7 @@ a {
 
 .app {
   display: grid;
-  grid-template-columns: 250px 1fr;
+  grid-template-columns: 264px 1fr;
   min-height: 100vh;
 }
 
@@ -96,9 +186,18 @@ a {
 }
 
 .brand {
-  font-weight: 800;
-  font-size: 22px;
-  margin-bottom: 22px;
+  display: grid;
+  gap: 3px;
+  margin-bottom: 24px;
+}
+
+.brand strong {
+  font-size: 23px;
+}
+
+.brand span {
+  color: #aeb9cb;
+  font-size: 13px;
 }
 
 .nav {
@@ -110,7 +209,8 @@ a {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 12px;
+  min-height: 44px;
+  padding: 0 12px;
   border-radius: var(--radius);
   color: #d1d5db;
   background: transparent;
@@ -138,7 +238,12 @@ a {
 
 .topbar h2 {
   margin: 0;
-  font-size: 26px;
+  font-size: 28px;
+}
+
+.topbar p {
+  margin: 4px 0 0;
+  color: var(--muted);
 }
 
 .grid {
@@ -152,6 +257,10 @@ a {
 
 .two {
   grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.three {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .panel,
@@ -168,6 +277,7 @@ a {
 
 .card {
   padding: 16px;
+  box-shadow: 0 8px 22px rgba(16, 24, 39, .04);
 }
 
 .card small {
@@ -178,7 +288,7 @@ a {
 .card strong {
   display: block;
   margin-top: 8px;
-  font-size: 24px;
+  font-size: 25px;
 }
 
 .form {
@@ -201,11 +311,19 @@ textarea {
   border-radius: var(--radius);
   padding: 10px 12px;
   background: white;
+  color: var(--text);
 }
 
 textarea {
-  min-height: 86px;
+  min-height: 88px;
   resize: vertical;
+}
+
+label {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 14px;
 }
 
 .btn {
@@ -226,7 +344,7 @@ textarea {
 }
 
 .btn.secondary {
-  background: #e5e7eb;
+  background: #e8edf5;
   color: #111827;
 }
 
@@ -252,12 +370,13 @@ textarea {
 .item {
   padding: 12px;
   display: grid;
-  gap: 7px;
+  gap: 8px;
 }
 
 .item-head {
   display: flex;
   justify-content: space-between;
+  align-items: flex-start;
   gap: 12px;
 }
 
@@ -285,23 +404,59 @@ textarea {
 .danger-text { color: var(--danger); }
 
 .notice {
-  max-width: 680px;
-  margin: 60px auto;
+  max-width: 720px;
+  margin: 70px auto;
   background: white;
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  padding: 24px;
+  padding: 28px;
   text-align: center;
+  box-shadow: var(--shadow);
+}
+
+.profile-cover {
+  min-height: 180px;
+  border-radius: var(--radius);
+  background: #dfe7ef center/cover;
+  border: 1px solid var(--line);
+}
+
+.profile-cover.empty-cover {
+  display: grid;
+  place-items: center;
+  color: var(--muted);
 }
 
 .public-page {
-  max-width: 760px;
-  margin: 0 auto;
-  padding: 24px;
+  min-height: 100vh;
+  background: var(--bg);
 }
 
-.public-header {
-  padding: 20px 0;
+.public-hero {
+  min-height: 280px;
+  background:
+    linear-gradient(rgba(16,24,39,.35), rgba(16,24,39,.68)),
+    var(--photo) center/cover;
+  color: white;
+  display: flex;
+  align-items: end;
+  padding: 32px;
+}
+
+.public-hero h1 {
+  margin: 0 0 8px;
+  font-size: clamp(34px, 6vw, 58px);
+}
+
+.public-hero p {
+  margin: 0;
+  color: #e5e7eb;
+}
+
+.public-content {
+  max-width: 820px;
+  margin: -42px auto 0;
+  padding: 0 20px 40px;
 }
 
 .empty {
@@ -310,7 +465,20 @@ textarea {
   padding: 24px;
 }
 
-@media (max-width: 900px) {
+@media (max-width: 960px) {
+  .auth-page {
+    grid-template-columns: 1fr;
+  }
+
+  .auth-hero {
+    padding: 28px;
+    min-height: 460px;
+  }
+
+  .auth-points {
+    grid-template-columns: 1fr;
+  }
+
   .app {
     grid-template-columns: 1fr;
   }
@@ -332,6 +500,7 @@ textarea {
 
   .cards,
   .two,
+  .three,
   .row {
     grid-template-columns: 1fr;
   }

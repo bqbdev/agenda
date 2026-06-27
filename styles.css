@@ -397,6 +397,16 @@ a {
   font-size: 30px;
 }
 
+.danger-metric {
+  border-color: rgba(227, 38, 38, 0.35);
+  background: #fff5f5;
+}
+
+.warning-metric {
+  border-color: rgba(245, 158, 11, 0.35);
+  background: #fff8eb;
+}
+
 .panel {
   background: #fff;
   border: 1px solid var(--line);
@@ -482,11 +492,15 @@ a {
   font-size: 16px;
 }
 
+.interval-list {
+  display: grid;
+  gap: 8px;
+}
+
 .interval-row {
   display: grid;
   grid-template-columns: minmax(120px, 1fr) minmax(120px, 1fr) 96px;
   gap: 10px;
-  margin-bottom: 8px;
 }
 
 .profile-preview {
@@ -505,6 +519,82 @@ a {
   border-radius: 8px;
   background: #f7fafc;
   border: 1px solid var(--line);
+}
+
+.admin-billing-board {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.billing-column {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 14px;
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  box-shadow: 0 10px 30px rgba(7, 20, 38, 0.04);
+}
+
+.billing-column h2 {
+  margin: 0 0 4px;
+  font-size: 18px;
+}
+
+.billing-mini-card {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.billing-mini-card strong {
+  display: block;
+  margin-bottom: 4px;
+}
+
+.billing-mini-card span,
+.billing-mini-card small {
+  display: block;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.billing-mini-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.billing-overdue {
+  border-color: rgba(227, 38, 38, 0.45);
+  background: #fff5f5;
+}
+
+.billing-soon {
+  border-color: rgba(245, 158, 11, 0.5);
+  background: #fff8eb;
+}
+
+.billing-ok {
+  border-color: rgba(17, 133, 119, 0.28);
+  background: #f1fbf8;
+}
+
+.billing-blocked {
+  border-color: rgba(7, 20, 38, 0.24);
+  background: #eef2f6;
+}
+
+.billing-no-due {
+  border-color: rgba(93, 107, 130, 0.32);
+  background: #f8fafc;
 }
 
 .admin-item {
@@ -682,6 +772,12 @@ a {
   font-size: 24px;
 }
 
+@media (max-width: 1300px) {
+  .admin-billing-board {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 @media (max-width: 1200px) {
   .admin-actions {
     grid-template-columns: 1fr 1fr;
@@ -738,6 +834,16 @@ a {
 
   .metrics {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .admin-billing-board {
+    grid-template-columns: 1fr;
+  }
+
+  .billing-mini-card {
+    display: grid;
   }
 }
 

@@ -290,7 +290,7 @@ function renderAuth() {
           <div><strong>Gestão completa</strong><span>Controle clientes, serviços, pagamentos, agenda e financeiro.</span></div>
         </div>
 
-        <small>100% web, pronto para GitHub Pages e Firebase.</small>
+        <small>By bqsystems</small>
       </div>
 
       <div class="auth-card">

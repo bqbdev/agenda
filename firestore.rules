@@ -1,1 +1,81 @@
+rules_version = '2';
 
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function currentUser() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function isAdmin() {
+      return signedIn() && currentUser().data.role == "admin";
+    }
+
+    function isOwner(userId) {
+      return signedIn() && request.auth.uid == userId;
+    }
+
+    function establishmentIsActive(userId) {
+      let userDoc = get(/databases/$(database)/documents/users/$(userId));
+      return userDoc.data.status == "active"
+        && userDoc.data.blocked == false
+        && userDoc.data.paymentStatus == "paid";
+    }
+
+    match /users/{userId} {
+      allow create: if isOwner(userId)
+        && request.resource.data.role == "establishment"
+        && request.resource.data.status == "pending";
+
+      allow read: if isOwner(userId) || isAdmin() || true;
+
+      allow update: if isAdmin()
+        || (
+          isOwner(userId)
+          && resource.data.role == "establishment"
+          && request.resource.data.role == resource.data.role
+          && request.resource.data.status == resource.data.status
+          && request.resource.data.blocked == resource.data.blocked
+          && request.resource.data.paymentStatus == resource.data.paymentStatus
+        );
+
+      allow delete: if isAdmin();
+
+      match /clients/{clientId} {
+        allow read, update, delete: if isOwner(userId) || isAdmin();
+
+        allow create: if isOwner(userId)
+          || isAdmin()
+          || (
+            establishmentIsActive(userId)
+            && request.resource.data.phoneKey == clientId
+          );
+      }
+
+      match /services/{serviceId} {
+        allow read: if establishmentIsActive(userId) || isOwner(userId) || isAdmin();
+        allow write: if isOwner(userId) || isAdmin();
+      }
+
+      match /appointments/{appointmentId} {
+        allow read, update, delete: if isOwner(userId) || isAdmin();
+
+        allow create: if isOwner(userId)
+          || isAdmin()
+          || (
+            establishmentIsActive(userId)
+            && request.resource.data.source == "online"
+            && request.resource.data.status == "pending"
+            && request.resource.data.paymentStatus == "pending"
+          );
+      }
+
+      match /transactions/{transactionId} {
+        allow read, write: if isOwner(userId) || isAdmin();
+      }
+    }
+  }
+}

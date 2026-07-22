@@ -1,382 +1,231 @@
 <!doctype html>
 <html lang="pt-BR">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>BQ Agenda | Agenda online para estabelecimentos</title>
-  <meta name="description" content="Agenda online para estabelecimentos com confirmação por WhatsApp, controle de clientes, financeiro e página de divulgação.">
-
-  <meta property="og:title" content="BQ Agenda">
-  <meta property="og:description" content="Seu negócio com agenda online, confirmação por WhatsApp e controle financeiro em uma plataforma simples.">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Psicólogo Marcos Tadeu, CRP 58051. Psicoterapia individual, terapia de casal e atendimento psicológico online e presencial para ansiedade, autoestima e desenvolvimento pessoal.">
+  <meta name="robots" content="index, follow, max-image-preview:large">
+  <meta name="author" content="Marcos Tadeu - Psicólogo CRP 58051">
+  <meta name="keywords" content="psicólogo Marcos Tadeu, psicoterapia, psicólogo online, terapia individual, terapia de casal, tratamento para ansiedade, atendimento psicológico">
+  <meta name="theme-color" content="#071c40">
+  <link rel="canonical" href="https://marcostadeu.bqsystems.com.br/">
+  <link rel="icon" type="image/png" sizes="512x512" href="favicon.png">
+  <link rel="apple-touch-icon" href="favicon.png">
+  <meta property="og:locale" content="pt_BR">
   <meta property="og:type" content="website">
-  <meta property="og:image" content="logo.png">
-
-  <link rel="icon" href="logo.png">
-  <link rel="stylesheet" href="styles.css?v=31">
-  <script src="https://unpkg.com/lucide@latest"></script>
-
+  <meta property="og:url" content="https://marcostadeu.bqsystems.com.br/">
+  <meta property="og:site_name" content="Marcos Tadeu Psicólogo">
+  <meta property="og:title" content="Marcos Tadeu | Psicólogo - CRP 58051">
+  <meta property="og:description" content="Psicoterapia com escuta genuína, ética e direção. Atendimento psicológico online e presencial.">
+  <meta property="og:image" content="https://marcostadeu.bqsystems.com.br/preview-whatsapp.jpg">
+  <meta property="og:image:secure_url" content="https://marcostadeu.bqsystems.com.br/preview-whatsapp.jpg">
+  <meta property="og:image:type" content="image/jpeg">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Marcos Tadeu, Psicólogo CRP 58051 — Psicoterapia com presença e propósito">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Marcos Tadeu | Psicólogo - CRP 58051">
+  <meta name="twitter:description" content="Atendimento psicológico online e presencial com escuta, ética e propósito.">
+  <meta name="twitter:image" content="https://marcostadeu.bqsystems.com.br/preview-whatsapp.jpg">
+  <title>Psicólogo Marcos Tadeu | CRP 58051 | Psicoterapia</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
-    .landing {
-      min-height: 100vh;
-      display: grid;
-      grid-template-columns: minmax(0, 1.05fr) minmax(360px, 0.75fr);
-      gap: 48px;
-      align-items: center;
-      padding: 48px 6vw;
-      background:
-        linear-gradient(135deg, rgba(7, 20, 38, 0.94), rgba(11, 126, 115, 0.88)),
-        url("https://images.unsplash.com/photo-1556761175-b413da4baf72?auto=format&fit=crop&w=1800&q=80");
-      background-size: cover;
-      background-position: center;
-      color: #fff;
-    }
+    :root{--ink:#071c40;--forest:#082e51;--leaf:#078482;--mint:#d8eeee;--paper:#f5f8fa;--white:#fff;--coral:#079391;--line:rgba(7,28,64,.13);--shadow:0 24px 80px rgba(7,28,64,.13);--ease:cubic-bezier(.2,.8,.2,1)}
+    *{box-sizing:border-box;margin:0;padding:0}
+    html{scroll-behavior:smooth;scroll-padding-top:90px}
+    body{font-family:"DM Sans",sans-serif;color:var(--ink);background:var(--paper);line-height:1.6;overflow-x:hidden}
+    body.menu-open{overflow:hidden}
+    a{color:inherit} button,input,select,textarea{font:inherit}
+    .container{width:min(1180px,calc(100% - 48px));margin:auto}
+    .eyebrow{display:flex;align-items:center;gap:10px;font-size:.75rem;font-weight:600;text-transform:uppercase;letter-spacing:.16em;color:var(--forest)}
+    .eyebrow::before{content:"";width:26px;height:1px;background:currentColor}
+    h1,h2,h3{font-family:"Manrope",sans-serif;letter-spacing:-.045em;line-height:1.06}
+    .display{font-size:clamp(2.55rem,6vw,5.65rem);font-weight:500}
+    .section-title{font-size:clamp(2.1rem,4.3vw,4rem);font-weight:500;max-width:760px}
+    .muted{color:#52615b}
+    .button{display:inline-flex;align-items:center;justify-content:center;gap:12px;min-height:54px;padding:0 24px;border-radius:100px;border:1px solid transparent;text-decoration:none;font-weight:600;transition:.3s var(--ease);cursor:pointer}
+    .button svg{transition:transform .3s var(--ease)}
+    .button:hover svg{transform:translateX(4px)}
+    .button-dark{background:var(--ink);color:#fff}.button-dark:hover{background:var(--forest);transform:translateY(-2px)}
+    .button-light{background:#fff;color:var(--ink)}.button-light:hover{background:var(--mint);transform:translateY(-2px)}
+    .button-ghost{border-color:var(--line)}.button-ghost:hover{background:#fff}
 
-    .landing-logo {
-      width: 170px;
-      max-width: 70vw;
-      height: auto;
-      margin-bottom: 44px;
-      object-fit: contain;
-    }
+    .nav{position:fixed;inset:0 0 auto;z-index:100;padding:18px 0;transition:.3s var(--ease)}
+    .nav.scrolled{padding:10px 0;background:rgba(244,240,232,.82);backdrop-filter:blur(18px);border-bottom:1px solid var(--line)}
+    .nav-inner{display:flex;align-items:center;justify-content:space-between;gap:24px}
+    .brand{display:flex;align-items:center;gap:11px;text-decoration:none;font-family:"Manrope";font-weight:700;letter-spacing:-.03em;position:relative;z-index:102}.brand small{display:block;font-family:"DM Sans";font-size:.62rem;font-weight:600;letter-spacing:.08em;color:var(--leaf)}
+    .brand-logo-frame{display:block;width:76px;height:54px;overflow:hidden;position:relative;border-radius:10px;background:#fff;box-shadow:0 5px 18px rgba(7,28,64,.1);flex:none}
+    .brand-logo{display:block;width:151px;height:151px;max-width:none;object-fit:contain;position:absolute;left:-38px;top:-28px;mix-blend-mode:multiply}
+    .nav-links{display:flex;align-items:center;gap:34px;list-style:none}
+    .nav-links a{text-decoration:none;font-size:.91rem;font-weight:500;position:relative}
+    .nav-links a:not(.nav-cta)::after{content:"";position:absolute;left:0;bottom:-6px;width:100%;height:1px;background:var(--ink);transform:scaleX(0);transform-origin:right;transition:transform .25s}
+    .nav-links a:hover::after{transform:scaleX(1);transform-origin:left}
+    .nav-cta{padding:12px 20px;border-radius:100px;background:var(--ink);color:#fff}
+    .menu-btn{display:none;width:44px;height:44px;border:0;border-radius:50%;background:var(--ink);color:white;position:relative;z-index:102;cursor:pointer}
+    .menu-btn span,.menu-btn::before{content:"";position:absolute;left:13px;width:18px;height:1.5px;background:currentColor;transition:.25s}.menu-btn::before{top:17px}.menu-btn span{top:25px}
+    .menu-open .menu-btn::before{top:21px;transform:rotate(45deg)}.menu-open .menu-btn span{top:21px;transform:rotate(-45deg)}
 
-    .landing-copy h1 {
-      max-width: 760px;
-      margin: 0;
-      font-size: clamp(42px, 6vw, 78px);
-      line-height: 0.96;
-      letter-spacing: 0;
-    }
+    .hero{min-height:100svh;padding:150px 0 70px;position:relative;display:flex;align-items:center;background:radial-gradient(circle at 86% 22%,rgba(118,167,143,.23),transparent 28%),var(--paper)}
+    .hero::before{content:"";position:absolute;width:520px;height:520px;border:1px solid rgba(22,63,53,.11);border-radius:50%;right:-210px;top:20%;box-shadow:0 0 0 70px rgba(22,63,53,.025),0 0 0 140px rgba(22,63,53,.02)}
+    .hero-grid{display:grid;grid-template-columns:1.25fr .75fr;gap:68px;align-items:end;position:relative}
+    .availability{display:inline-flex;align-items:center;gap:9px;padding:8px 13px;border:1px solid var(--line);border-radius:99px;margin-bottom:28px;font-size:.8rem;background:rgba(255,255,255,.45)}
+    .availability i{width:8px;height:8px;border-radius:50%;background:#4d9d76;box-shadow:0 0 0 5px rgba(77,157,118,.13);animation:pulse 2s infinite}
+    @keyframes pulse{50%{box-shadow:0 0 0 9px rgba(77,157,118,0)}}
+    .hero h1 span{color:var(--forest);font-style:italic;font-weight:400}
+    .hero-copy{max-width:620px;margin:28px 0 34px;font-size:clamp(1.02rem,1.5vw,1.2rem);color:#4e5d57}
+    .hero-actions{display:flex;gap:12px;flex-wrap:wrap}
+    .hero-side{display:flex;flex-direction:column;gap:18px}
+    .portrait{aspect-ratio:4/5;border-radius:220px 220px 28px 28px;background:linear-gradient(145deg,#e9f5f5,#fff);position:relative;overflow:hidden;box-shadow:var(--shadow);border:1px solid rgba(7,132,130,.18);display:grid;place-items:center;padding:9%}
+    .portrait img{width:100%;height:100%;object-fit:contain;mix-blend-mode:multiply;position:relative;z-index:1}
+    .portrait::after{content:"";position:absolute;width:210px;height:210px;border-radius:50%;background:rgba(7,132,130,.08);right:-40px;top:35px;box-shadow:-140px 180px 0 rgba(7,28,64,.05)}
+    .micro-card{display:flex;align-items:center;justify-content:space-between;padding:20px 22px;background:var(--white);border-radius:18px;box-shadow:0 14px 45px rgba(18,45,37,.08)}
+    .micro-card strong{display:block;font-family:"Manrope";font-size:1rem}.micro-card small{color:#61706a}
+    .micro-icon{display:grid;place-items:center;width:42px;height:42px;border-radius:50%;background:var(--mint);font-size:1.1rem}
+    .hero-note{position:absolute;right:32%;top:8%;transform:rotate(6deg);background:var(--coral);color:#fff;padding:14px 18px;border-radius:4px 14px 14px 14px;font-size:.79rem;font-weight:600;box-shadow:0 14px 35px rgba(238,119,95,.3)}
 
-    .landing-copy p {
-      max-width: 620px;
-      margin: 24px 0 0;
-      font-size: 20px;
-      line-height: 1.55;
-      color: rgba(255, 255, 255, 0.86);
-    }
+    .trust-strip{background:var(--ink);color:#fff;padding:26px 0}
+    .trust-list{display:grid;grid-template-columns:repeat(4,1fr);list-style:none}
+    .trust-list li{display:flex;align-items:center;justify-content:center;gap:10px;padding:4px 18px;border-right:1px solid rgba(255,255,255,.15);font-size:.88rem}.trust-list li:last-child{border:0}.trust-list b{font-family:"Manrope";font-size:1.25rem;color:#b7d9c8}
 
-    .landing-benefits {
-      display: grid;
-      grid-template-columns: repeat(3, minmax(150px, 1fr));
-      gap: 14px;
-      max-width: 760px;
-      margin-top: 36px;
-    }
+    section.content{padding:120px 0}
+    .intro-head{display:grid;grid-template-columns:1fr .75fr;gap:70px;align-items:end;margin-bottom:68px}
+    .intro-head p{font-size:1.08rem;color:#55645e;max-width:480px}
+    .approach-grid{display:grid;grid-template-columns:1.15fr .85fr;gap:22px}
+    .approach-main{min-height:540px;padding:54px;border-radius:28px;background:var(--forest);color:#fff;display:flex;flex-direction:column;justify-content:space-between;position:relative;overflow:hidden}
+    .approach-main::after{content:"";position:absolute;width:380px;height:380px;border:75px solid rgba(255,255,255,.055);border-radius:50%;right:-110px;bottom:-150px}
+    .quote-mark{font:500 6rem/1 "Manrope";color:#a9cdbb}.approach-main blockquote{font:500 clamp(1.75rem,3.2vw,3.05rem)/1.18 "Manrope";letter-spacing:-.04em;max-width:710px;position:relative;z-index:1}
+    .approach-main footer{display:flex;align-items:center;gap:12px;color:#c8dbd2;position:relative;z-index:1}.approach-main footer::before{content:"";width:34px;height:1px;background:currentColor}
+    .approach-side{display:grid;gap:22px}
+    .feature{padding:34px;border-radius:24px;background:#fff;border:1px solid rgba(255,255,255,.5);display:flex;flex-direction:column;justify-content:space-between;min-height:258px;transition:.3s var(--ease)}
+    .feature:hover{transform:translateY(-5px);box-shadow:var(--shadow)}
+    .feature-index{display:flex;justify-content:space-between;color:#6b7a74;font-size:.78rem;text-transform:uppercase;letter-spacing:.12em}.feature-icon{font-size:1.3rem}
+    .feature h3{font-size:1.45rem;margin:32px 0 9px}.feature p{font-size:.94rem;color:#607069}
 
-    .landing-benefit {
-      min-height: 112px;
-      padding: 18px;
-      border-radius: 8px;
-      background: rgba(255, 255, 255, 0.12);
-      border: 1px solid rgba(255, 255, 255, 0.22);
-      backdrop-filter: blur(10px);
-    }
+    .services{background:#e5ebe6}
+    .services-top{display:flex;justify-content:space-between;align-items:end;gap:40px;margin-bottom:56px}.services-top .button{flex:none}
+    .service-list{border-top:1px solid rgba(19,33,28,.2)}
+    .service{display:grid;grid-template-columns:80px 1fr 1fr 52px;gap:24px;align-items:center;padding:30px 4px;border-bottom:1px solid rgba(19,33,28,.2);transition:.3s var(--ease)}
+    .service:hover{padding-left:18px;padding-right:18px;background:rgba(255,255,255,.45)}
+    .service-number{font-size:.76rem;color:#65736d}.service h3{font-size:clamp(1.35rem,2.2vw,2rem);font-weight:500}.service p{color:#5b6a64;font-size:.94rem;max-width:420px}
+    .service-arrow{display:grid;place-items:center;width:44px;height:44px;border:1px solid rgba(19,33,28,.2);border-radius:50%;transition:.3s}.service:hover .service-arrow{background:var(--ink);color:#fff;transform:rotate(-35deg)}
 
-    .landing-benefit strong {
-      display: block;
-      margin-bottom: 8px;
-      font-size: 16px;
-    }
+    .steps-wrap{display:grid;grid-template-columns:.82fr 1.18fr;gap:90px}.sticky-copy{position:sticky;top:130px;align-self:start}.sticky-copy p{margin:24px 0 30px;max-width:420px}
+    .steps{counter-reset:step}.step{counter-increment:step;display:grid;grid-template-columns:62px 1fr;gap:26px;padding:34px 0;border-top:1px solid var(--line)}.step:last-child{border-bottom:1px solid var(--line)}
+    .step::before{content:"0" counter(step);display:grid;place-items:center;width:52px;height:52px;border-radius:50%;background:var(--mint);font-size:.8rem;font-weight:600}.step h3{font-size:1.45rem;margin:3px 0 10px}.step p{color:#61706a}
 
-    .landing-benefit span {
-      display: block;
-      font-size: 14px;
-      line-height: 1.35;
-      color: rgba(255, 255, 255, 0.8);
-    }
+    .booking{padding:36px 0 0}.booking-shell{border-radius:34px 34px 0 0;background:var(--ink);color:#fff;padding:80px;position:relative;overflow:hidden}.booking-shell::before{content:"";position:absolute;width:440px;height:440px;border-radius:50%;border:80px solid rgba(255,255,255,.035);right:-130px;top:-180px}
+    .booking-grid{display:grid;grid-template-columns:1fr .8fr;gap:80px;position:relative}.booking .eyebrow{color:#a9cdbb}.booking h2{margin:24px 0}.booking-copy>p{color:#b7c6c0;max-width:570px;font-size:1.04rem}.contact-pills{display:flex;flex-wrap:wrap;gap:10px;margin-top:34px}.contact-pills span{padding:10px 14px;border:1px solid rgba(255,255,255,.16);border-radius:100px;font-size:.8rem;color:#d0ddd7}
+    .booking-form{background:#fff;color:var(--ink);padding:32px;border-radius:24px}.booking-form h3{font-size:1.45rem;margin-bottom:22px}.field{margin-bottom:14px}.field label{display:block;font-size:.76rem;font-weight:600;margin:0 0 7px 4px}.field input,.field select,.field textarea{width:100%;border:1px solid #d8dfdb;background:#f6f7f5;border-radius:12px;padding:13px 15px;outline:none;transition:.2s}.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--leaf);box-shadow:0 0 0 3px rgba(118,167,143,.15)}.field textarea{min-height:78px;resize:vertical}.booking-form .button{width:100%;border:0;margin-top:4px}
 
-    .landing-panel {
-      width: 100%;
-      max-width: 520px;
-      justify-self: end;
-      padding: 28px;
-      border-radius: 8px;
-      background: rgba(255, 255, 255, 0.96);
-      color: #071426;
-      box-shadow: 0 24px 80px rgba(0, 0, 0, 0.24);
-    }
-
-    .landing-panel h2 {
-      margin: 0 0 8px;
-      font-size: 28px;
-      line-height: 1.15;
-    }
-
-    .landing-panel > p {
-      margin: 0 0 22px;
-      color: #5d6b82;
-      line-height: 1.45;
-    }
-
-    .landing-plans {
-      display: grid;
-      gap: 14px;
-    }
-
-    .landing-plan {
-      padding: 18px;
-      border: 1px solid #dce4ef;
-      border-radius: 8px;
-      background: #fff;
-    }
-
-    .landing-plan.featured {
-      border-color: #118577;
-      background: #f1fbf8;
-    }
-
-    .landing-plan-header {
-      display: flex;
-      align-items: flex-start;
-      justify-content: space-between;
-      gap: 14px;
-      margin-bottom: 14px;
-    }
-
-    .landing-plan-header span {
-      display: block;
-      font-size: 14px;
-      color: #5d6b82;
-    }
-
-    .landing-plan-header strong {
-      display: block;
-      font-size: 30px;
-      line-height: 1;
-      color: #071426;
-      white-space: nowrap;
-    }
-
-    .landing-plan h3 {
-      margin: 0 0 12px;
-      font-size: 18px;
-    }
-
-    .landing-plan ul {
-      margin: 0;
-      padding: 0;
-      list-style: none;
-      display: grid;
-      gap: 9px;
-    }
-
-    .landing-plan li {
-      display: flex;
-      gap: 8px;
-      align-items: flex-start;
-      font-size: 14px;
-      line-height: 1.35;
-      color: #26354d;
-    }
-
-    .landing-plan li::before {
-      content: "✓";
-      color: #118577;
-      font-weight: 800;
-    }
-
-    .landing-actions {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px;
-      margin-top: 18px;
-    }
-
-    .landing-button {
-      min-height: 46px;
-      border: 0;
-      border-radius: 8px;
-      background: #118577;
-      color: #fff;
-      font-weight: 800;
-      cursor: pointer;
-    }
-
-    .landing-button.secondary {
-      background: #edf2f7;
-      color: #071426;
-    }
-
-    .landing-button.whatsapp {
-      grid-column: 1 / -1;
-      background: #25d366;
-      color: #062b16;
-    }
-
-    .landing-note {
-      margin-top: 16px;
-      font-size: 13px;
-      color: #6b778c;
-      text-align: center;
-    }
-
-    @media (max-width: 980px) {
-      .landing {
-        grid-template-columns: 1fr;
-        gap: 32px;
-        padding: 32px 22px;
-      }
-
-      .landing-panel {
-        justify-self: stretch;
-        max-width: none;
-      }
-
-      .landing-benefits {
-        grid-template-columns: 1fr;
-      }
-    }
-
-    @media (max-width: 560px) {
-      .landing {
-        padding: 24px 16px;
-      }
-
-      .landing-logo {
-        width: 138px;
-        margin-bottom: 32px;
-      }
-
-      .landing-copy h1 {
-        font-size: 42px;
-      }
-
-      .landing-copy p {
-        font-size: 17px;
-      }
-
-      .landing-panel {
-        padding: 20px;
-      }
-
-      .landing-actions {
-        grid-template-columns: 1fr;
-      }
-
-      .landing-plan-header {
-        display: grid;
-      }
-    }
+    .footer{background:var(--ink);color:#fff;padding:50px 0 28px;border-top:1px solid rgba(255,255,255,.1)}
+    .footer-grid{display:grid;grid-template-columns:1.5fr 1fr 1fr;gap:48px;align-items:start}.footer .brand{margin-bottom:16px}.footer p,.footer a{color:#aebdb7}.footer p{max-width:360px;font-size:.9rem}.footer h4{font-size:.79rem;text-transform:uppercase;letter-spacing:.13em;margin-bottom:15px}.footer ul{list-style:none}.footer li{margin:8px 0}.footer a{text-decoration:none;font-size:.9rem}.footer a:hover{color:#fff}.footer-bottom{margin-top:48px;padding-top:22px;border-top:1px solid rgba(255,255,255,.1);display:flex;justify-content:space-between;color:#82928c;font-size:.78rem}.developer-credit{margin-top:22px;padding-top:20px;border-top:1px solid rgba(255,255,255,.08);display:flex;align-items:center;justify-content:center;gap:13px;color:#93a9a3;font-size:.78rem}.developer-credit a{display:flex;align-items:center;justify-content:center;gap:10px;padding:5px 8px;text-decoration:none;transition:.25s var(--ease)}.developer-credit a:hover{transform:translateY(-2px)}.developer-credit img{display:block;width:138px;height:47px;object-fit:contain}.developer-credit .bq-name{color:#fff;font-family:"Manrope",sans-serif;font-size:1rem;font-weight:700;letter-spacing:-.02em;white-space:nowrap}
+    .whatsapp-float{position:fixed;right:22px;bottom:22px;z-index:90;display:flex;align-items:center;gap:10px;background:#25d366;color:#062d16;text-decoration:none;font-size:.82rem;font-weight:700;padding:11px 17px 11px 12px;border-radius:100px;box-shadow:0 12px 36px rgba(0,0,0,.2);transition:.3s}.whatsapp-float:hover{transform:translateY(-4px)}.whatsapp-icon{display:grid;place-items:center;width:31px;height:31px;border-radius:50%;background:#fff;color:#128c4b;flex:none}.whatsapp-icon svg{width:18px;height:18px}.button .wa-inline{width:19px;height:19px;flex:none}
+    .reveal{opacity:0;transform:translateY(25px);transition:opacity .75s var(--ease),transform .75s var(--ease)}.reveal.visible{opacity:1;transform:none}
+    @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*::before,*::after{animation:none!important;transition:none!important}.reveal{opacity:1;transform:none}}
+    @media(max-width:920px){.menu-btn{display:block}.nav-links{position:fixed;inset:0;background:var(--paper);display:flex;flex-direction:column;align-items:flex-start;justify-content:center;padding:80px 11vw;gap:22px;transform:translateX(100%);transition:.35s var(--ease)}.menu-open .nav-links{transform:none}.nav-links a{font:500 2rem/1.2 "Manrope"}.nav-cta{padding:14px 22px!important;font-size:1rem!important}.hero-grid,.intro-head,.approach-grid,.steps-wrap,.booking-grid{grid-template-columns:1fr}.hero{padding-top:130px}.hero-side{max-width:520px}.hero-note{right:6%;top:54%}.trust-list{grid-template-columns:1fr 1fr;row-gap:18px}.trust-list li:nth-child(2){border-right:0}.intro-head{gap:24px}.approach-main{min-height:440px}.services-top{align-items:flex-start;flex-direction:column}.sticky-copy{position:static}.steps-wrap{gap:30px}.booking-shell{padding:56px}.footer-grid{grid-template-columns:1fr 1fr}.footer-grid>div:first-child{grid-column:1/-1}}
+    @media(max-width:620px){.container{width:min(100% - 30px,1180px)}.nav .brand span:last-child{display:none}.brand-logo-frame{width:68px;height:48px}.brand-logo{width:135px;height:135px;left:-34px;top:-25px}.hero{padding:112px 0 50px;min-height:auto}.hero-grid{gap:44px}.hero-note{display:none}.portrait{aspect-ratio:1/1.1}.trust-list{grid-template-columns:1fr}.trust-list li{border-right:0;justify-content:flex-start}.trust-list li:not(:last-child){border-bottom:1px solid rgba(255,255,255,.1);padding-bottom:14px}section.content{padding:82px 0}.approach-main{padding:32px;min-height:430px}.feature{min-height:220px;padding:28px}.service{grid-template-columns:42px 1fr 42px;gap:12px}.service p{grid-column:2/4}.service-arrow{grid-column:3;grid-row:1}.steps-wrap{gap:18px}.step{grid-template-columns:50px 1fr;gap:16px}.step::before{width:44px;height:44px}.booking{padding-top:14px}.booking-shell{padding:42px 22px;border-radius:25px 25px 0 0}.booking-grid{gap:42px}.booking-form{padding:24px 18px}.footer-grid{grid-template-columns:1fr}.footer-grid>div:first-child{grid-column:auto}.footer-bottom{gap:12px;flex-direction:column}.developer-credit{flex-direction:column;gap:9px}.whatsapp-float>span:last-child{display:none}.whatsapp-float{padding:10px;right:15px;bottom:15px}}
   </style>
 </head>
-
 <body>
-  <main id="root">
-    <section class="landing">
-      <div class="landing-copy">
-        <img src="logo.png" alt="BQ Agenda" class="landing-logo">
+  <header class="nav" id="nav">
+    <div class="container nav-inner">
+      <a class="brand" href="#inicio" aria-label="Marcos Tadeu Psicólogo - Início"><span class="brand-logo-frame"><img class="brand-logo" src="logo.png" alt="Logo Marcos Tadeu Psicólogo" width="151" height="151"></span><span>Marcos Tadeu <small>CRP 58051</small></span></a>
+      <button class="menu-btn" id="menuBtn" aria-label="Abrir menu" aria-expanded="false"><span></span></button>
+      <ul class="nav-links" id="navLinks">
+        <li><a href="#sobre">Sobre</a></li><li><a href="#atendimentos">Atendimentos</a></li><li><a href="#processo">Como funciona</a></li><li><a class="nav-cta" href="#agendar">Agendar conversa</a></li>
+      </ul>
+    </div>
+  </header>
 
-        <h1>Agenda online para negócios que vivem de horário.</h1>
-
-        <p>
-          Organize seus agendamentos, confirme pelo WhatsApp, acompanhe seus clientes
-          e controle seus ganhos em uma plataforma simples, web e pronta para usar.
-        </p>
-
-        <div class="landing-benefits">
-          <div class="landing-benefit">
-            <strong>Agenda online</strong>
-            <span>Seu cliente escolhe serviço, data e horário pelo link público.</span>
+  <main>
+    <section class="hero" id="inicio">
+      <div class="container hero-grid">
+        <div class="reveal">
+          <div class="availability"><i></i> Agenda aberta para novos pacientes</div>
+          <h1 class="display">Um espaço para <span>respirar, entender</span> e seguir.</h1>
+          <p class="hero-copy">Psicoterapia com escuta genuína e direção. Um acompanhamento humano e personalizado para você construir uma vida com mais equilíbrio, autonomia e sentido.</p>
+          <div class="hero-actions">
+            <a class="button button-dark" href="https://wa.me/5519988742048?text=Ol%C3%A1%2C%20gostaria%20de%20conversar%20sobre%20a%20terapia." target="_blank" rel="noopener" aria-label="Conversar com Marcos Tadeu pelo WhatsApp"><svg class="wa-inline" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347M12.05 21.785a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884a9.82 9.82 0 0 1 6.988 2.898 9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.889 9.884M20.463 3.488A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413z"/></svg>Quero começar <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+            <a class="button button-ghost" href="#atendimentos">Conhecer atendimentos</a>
           </div>
+        </div>
+        <div class="hero-side reveal">
+          <div class="portrait"><img src="logo.png" alt="Marcos Tadeu Psicólogo - identidade visual" width="600" height="600"></div>
+          <div class="micro-card"><div><strong>Marcos Tadeu</strong><small>Psicólogo clínico • CRP 58051</small></div><span class="micro-icon">✦</span></div>
+        </div>
+        <div class="hero-note">Online e presencial<br>com hora marcada</div>
+      </div>
+    </section>
 
-          <div class="landing-benefit">
-            <strong>Confirmação rápida</strong>
-            <span>O cliente envia os dados do agendamento direto para o WhatsApp do estabelecimento.</span>
-          </div>
+    <div class="trust-strip"><ul class="container trust-list"><li><b>01</b> Escuta sem julgamentos</li><li><b>02</b> Abordagem baseada em evidências</li><li><b>03</b> Encontros online ou presenciais</li><li><b>04</b> Sigilo e cuidado ético</li></ul></div>
 
-          <div class="landing-benefit">
-            <strong>Gestão completa</strong>
-            <span>Controle clientes, serviços, pagamentos, agenda e financeiro.</span>
+    <section class="content" id="sobre">
+      <div class="container">
+        <div class="intro-head reveal"><div><span class="eyebrow">Sobre o processo</span><h2 class="section-title">Cuidar da mente também é aprender uma nova forma de estar no mundo.</h2></div><p>A terapia não oferece respostas prontas. Ela cria um espaço seguro para reconhecer padrões, ampliar perspectivas e fazer escolhas mais conscientes — no seu ritmo e de acordo com a sua história.</p></div>
+        <div class="approach-grid">
+          <article class="approach-main reveal"><span class="quote-mark">“</span><blockquote>Meu papel é caminhar ao seu lado enquanto você descobre seus próprios recursos para transformar o que hoje parece difícil.</blockquote><footer>Marcos Tadeu, psicólogo clínico</footer></article>
+          <div class="approach-side">
+            <article class="feature reveal"><div class="feature-index"><span>Abordagem</span><span class="feature-icon">◌</span></div><div><h3>Clareza para compreender</h3><p>Uma escuta atenta para organizar emoções, pensamentos e experiências que parecem confusas.</p></div></article>
+            <article class="feature reveal"><div class="feature-index"><span>Objetivo</span><span class="feature-icon">↗</span></div><div><h3>Autonomia para avançar</h3><p>Ferramentas práticas para lidar com desafios e construir mudanças possíveis fora da sessão.</p></div></article>
           </div>
         </div>
       </div>
+    </section>
 
-      <aside class="landing-panel">
-        <h2>Escolha seu plano</h2>
-        <p>Cadastre seu estabelecimento e aguarde a aprovação para começar a usar.</p>
-
-        <div class="landing-plans">
-          <article class="landing-plan featured">
-            <div class="landing-plan-header">
-              <div>
-                <span>Plano Mensal</span>
-                <h3>BQ Agenda</h3>
-              </div>
-              <strong>R$ 29,99</strong>
-            </div>
-
-            <ul>
-              <li>Confirmação por WhatsApp</li>
-              <li>Controle de clientes</li>
-              <li>Controle financeiro</li>
-            </ul>
-          </article>
-
-          <article class="landing-plan">
-            <div class="landing-plan-header">
-              <div>
-                <span>Plano Trimestral</span>
-                <h3>BQ Agenda</h3>
-              </div>
-              <strong>R$ 59,99</strong>
-            </div>
-
-            <ul>
-              <li>Confirmação por WhatsApp</li>
-              <li>Controle de clientes</li>
-              <li>Página de divulgação do seu negócio com local e redes sociais</li>
-              <li>Link direto de agendamento</li>
-              <li>Controle financeiro</li>
-            </ul>
-          </article>
+    <section class="content services" id="atendimentos">
+      <div class="container">
+        <div class="services-top reveal"><div><span class="eyebrow">Atendimentos</span><h2 class="section-title">Cuidado feito para o seu momento.</h2></div><a class="button button-dark" href="#agendar">Encontrar meu caminho</a></div>
+        <div class="service-list">
+          <article class="service reveal"><span class="service-number">01</span><h3>Terapia individual</h3><p>Um espaço particular para trabalhar ansiedade, depressão, autoestima, relações e transições de vida.</p><span class="service-arrow">↗</span></article>
+          <article class="service reveal"><span class="service-number">02</span><h3>Terapia de casal</h3><p>Para fortalecer o vínculo, aprimorar a comunicação e construir novas formas de lidar com conflitos.</p><span class="service-arrow">↗</span></article>
+          <article class="service reveal"><span class="service-number">03</span><h3>Atendimento online</h3><p>Encontros por videochamada, com acolhimento, privacidade e flexibilidade onde você estiver.</p><span class="service-arrow">↗</span></article>
+          <article class="service reveal"><span class="service-number">04</span><h3>Desenvolvimento pessoal</h3><p>Autoconhecimento e fortalecimento emocional para viver com mais intenção e coerência.</p><span class="service-arrow">↗</span></article>
         </div>
+      </div>
+    </section>
 
-        <div class="landing-actions">
-          <button class="landing-button" type="button" onclick="loadApp('#register')">
-            Cadastrar negócio
-          </button>
-
-          <button class="landing-button secondary" type="button" onclick="loadApp('#login')">
-            Entrar
-          </button>
-
-          <button class="landing-button whatsapp" type="button" onclick="openBQWhatsApp()">
-            Falar com a BQ pelo WhatsApp
-          </button>
+    <section class="content" id="processo">
+      <div class="container steps-wrap">
+          <div class="sticky-copy reveal"><span class="eyebrow">Como funciona</span><h2 class="section-title">Começar pode ser mais simples do que parece.</h2><p class="muted">O primeiro contato é uma conversa breve para entender sua necessidade e combinar os próximos passos.</p><a class="button button-dark" href="https://wa.me/5519988742048?text=Ol%C3%A1%2C%20gostaria%20de%20saber%20como%20funciona%20a%20primeira%20sess%C3%A3o." target="_blank" rel="noopener"><svg class="wa-inline" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347M12.05 21.785a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884a9.82 9.82 0 0 1 6.988 2.898 9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.889 9.884M20.463 3.488A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413z"/></svg>Falar com Marcos</a></div>
+        <div class="steps">
+          <article class="step reveal"><div><h3>Envie uma mensagem</h3><p>Entre em contato pelo WhatsApp e conte, como se sentir confortável, o que motivou sua busca.</p></div></article>
+          <article class="step reveal"><div><h3>Alinhamos o formato</h3><p>Combinamos modalidade, disponibilidade e todas as informações importantes para o início.</p></div></article>
+          <article class="step reveal"><div><h3>Primeiro encontro</h3><p>Uma sessão inicial para conhecer sua história, compreender sua demanda e definir objetivos.</p></div></article>
+          <article class="step reveal"><div><h3>Seu processo, no seu ritmo</h3><p>Seguimos com encontros regulares e um plano terapêutico construído em conjunto.</p></div></article>
         </div>
+      </div>
+    </section>
 
-        <div class="landing-note">
-          Depois do cadastro, você também poderá enviar a confirmação pelo WhatsApp.
+    <section class="booking" id="agendar" aria-label="Agendamento com o psicólogo Marcos Tadeu">
+      <div class="container booking-shell">
+        <div class="booking-grid">
+          <div class="booking-copy reveal"><span class="eyebrow">Vamos conversar?</span><h2 class="section-title">Você não precisa atravessar tudo sozinho.</h2><p>Preencha os dados ao lado. Ao enviar, uma mensagem pronta será aberta no WhatsApp para iniciarmos o contato de forma simples e acolhedora.</p><div class="contact-pills"><span>Segunda a sexta</span><span>8h às 20h</span><span>Online e presencial</span><span>(19) 98874-2048</span></div></div>
+          <form class="booking-form reveal" id="bookingForm"><h3>Solicitar agendamento</h3><div class="field"><label for="name">Seu nome</label><input id="name" name="name" type="text" placeholder="Como podemos chamar você?" required></div><div class="field"><label for="phone">WhatsApp</label><input id="phone" name="phone" type="tel" placeholder="(00) 00000-0000" required></div><div class="field"><label for="type">Atendimento</label><select id="type" name="type" required><option value="">Selecione uma opção</option><option>Terapia individual</option><option>Terapia de casal</option><option>Atendimento online</option><option>Desenvolvimento pessoal</option></select></div><div class="field"><label for="message">O que você gostaria de compartilhar? (opcional)</label><textarea id="message" name="message" placeholder="Escreva brevemente..."></textarea></div><button class="button button-dark" type="submit">Continuar no WhatsApp <span>↗</span></button></form>
         </div>
-      </aside>
+      </div>
     </section>
   </main>
 
+  <footer class="footer"><div class="container"><div class="footer-grid"><div><a class="brand" href="#inicio"><span class="brand-logo-frame"><img class="brand-logo" src="logo.png" alt="Logo Marcos Tadeu Psicólogo" width="151" height="151"></span><span>Marcos Tadeu</span></a><p>Psicólogo clínico • CRP 58051. Psicoterapia com presença, ciência e humanidade para construir mudanças que façam sentido para você.</p></div><div><h4>Navegação</h4><ul><li><a href="#sobre">Sobre</a></li><li><a href="#atendimentos">Atendimentos</a></li><li><a href="#processo">Como funciona</a></li></ul></div><div><h4>Contato</h4><ul><li><a href="https://wa.me/5519988742048" target="_blank" rel="noopener">WhatsApp: (19) 98874-2048</a></li><li><a href="#agendar">Agendar consulta</a></li><li><a href="#inicio">Voltar ao topo ↑</a></li></ul></div></div><div class="footer-bottom"><span>© <span id="year"></span> Marcos Tadeu • Psicólogo CRP 58051.</span><span>Psicologia com ética, escuta e propósito.</span></div><div class="developer-credit"><span>Site desenvolvido pela</span><a href="https://bqsystems.com.br/" target="_blank" rel="noopener noreferrer" aria-label="Visitar o site da BQ Systems"><img src="logobq-rodape.png" alt="Logo BQ Systems" width="138" height="47" loading="lazy"><span class="bq-name">BQ Systems</span></a></div></div></footer>
+  <a class="whatsapp-float" href="https://wa.me/5519988742048?text=Ol%C3%A1%2C%20gostaria%20de%20agendar%20uma%20consulta." target="_blank" rel="noopener" aria-label="Conversar com o psicólogo Marcos Tadeu pelo WhatsApp"><span class="whatsapp-icon"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347M12.05 21.785a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884a9.82 9.82 0 0 1 6.988 2.898 9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.889 9.884M20.463 3.488A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413z"/></svg></span><span>Falar no WhatsApp</span></a>
+
+  <script type="application/ld+json">
+    {"@context":"https://schema.org","@type":"Psychologist","@id":"https://marcostadeu.bqsystems.com.br/#psychologist","url":"https://marcostadeu.bqsystems.com.br/","name":"Marcos Tadeu","description":"Psicólogo clínico, CRP 58051, com atendimento psicológico online e presencial.","image":"https://marcostadeu.bqsystems.com.br/logo.png","logo":"https://marcostadeu.bqsystems.com.br/logo.png","telephone":"+55 19 98874-2048","identifier":"CRP 58051","areaServed":"Brasil","availableService":[{"@type":"MedicalTherapy","name":"Psicoterapia individual"},{"@type":"MedicalTherapy","name":"Terapia de casal"},{"@type":"MedicalTherapy","name":"Atendimento psicológico online"}]}
+  </script>
+
   <script>
-    const BQ_WHATSAPP = "5511996785799";
-
-    function openBQWhatsApp() {
-      const message = "Olá, BQ Agenda! Tenho interesse em cadastrar meu estabelecimento.";
-      window.open(`https://wa.me/${BQ_WHATSAPP}?text=${encodeURIComponent(message)}`, "_blank");
-    }
-
-    function loadApp(hash) {
-      window.location.hash = hash;
-
-      if (document.getElementById("appScript")) {
-        return;
-      }
-
-      const script = document.createElement("script");
-      script.id = "appScript";
-      script.type = "module";
-      script.src = "app.js?v=70";
-      document.body.appendChild(script);
-    }
-
-    if (window.location.hash && window.location.hash !== "#") {
-      loadApp(window.location.hash);
-    }
+    const nav=document.getElementById('nav'),menuBtn=document.getElementById('menuBtn');
+    const closeMenu=()=>{document.body.classList.remove('menu-open');menuBtn.setAttribute('aria-expanded','false');menuBtn.setAttribute('aria-label','Abrir menu')};
+    addEventListener('scroll',()=>nav.classList.toggle('scrolled',scrollY>20),{passive:true});
+    menuBtn.addEventListener('click',()=>{const open=document.body.classList.toggle('menu-open');menuBtn.setAttribute('aria-expanded',String(open));menuBtn.setAttribute('aria-label',open?'Fechar menu':'Abrir menu')});
+    document.querySelectorAll('.nav-links a').forEach(link=>link.addEventListener('click',closeMenu));
+    document.addEventListener('keydown',event=>{if(event.key==='Escape')closeMenu()});
+    const observer=new IntersectionObserver(entries=>entries.forEach(entry=>{if(entry.isIntersecting){entry.target.classList.add('visible');observer.unobserve(entry.target)}}),{threshold:.12});
+    document.querySelectorAll('.reveal').forEach(element=>observer.observe(element));
+    document.getElementById('bookingForm').addEventListener('submit',function(event){event.preventDefault();const data=new FormData(this);const lines=['Olá, gostaria de solicitar um agendamento.','','Nome: '+data.get('name'),'WhatsApp: '+data.get('phone'),'Atendimento: '+data.get('type')];if(data.get('message'))lines.push('Mensagem: '+data.get('message'));window.open('https://wa.me/5519988742048?text='+encodeURIComponent(lines.join('\n')),'_blank','noopener')});
+    document.getElementById('year').textContent=new Date().getFullYear();
   </script>
 </body>
 </html>
